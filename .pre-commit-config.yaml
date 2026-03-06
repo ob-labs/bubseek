@@ -14,9 +14,17 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.14.14"
+  # Use local ruff (from uv) to avoid fetching from GitHub
+  - repo: local
     hooks:
       - id: ruff-check
-        args: [ --exit-non-zero-on-fix ]
+        name: ruff-check
+        entry: uv run ruff check
+        language: system
+        types: [python]
+        args: [--exit-non-zero-on-fix]
       - id: ruff-format
+        name: ruff-format
+        entry: uv run ruff format
+        language: system
+        types: [python]

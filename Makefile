@@ -1,3 +1,8 @@
+.PHONY: lock
+lock: ## Update uv.lock against PyPI (ignore UV_INDEX_URL so lock stays canonical)
+	@echo "🚀 Updating lock file against PyPI"
+	@uv lock --default-index https://pypi.org/simple
+
 .PHONY: install
 install: ## Install the virtual environment and install the pre-commit hooks
 	@echo "🚀 Creating virtual environment using uv"

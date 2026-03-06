@@ -26,9 +26,9 @@ dev = [
     "pytest>=9.0.2",
     "pre-commit>=4.5.1",
     "tox-uv>=1.29.0",
-    
+
     "ty>=0.0.14",
-    
+
     "ruff>=0.14.14",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.1",
@@ -38,6 +38,11 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+# Lock file is always resolved against PyPI. For faster install during dev, use:
+#   UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple uv sync
+[tool.uv]
+index-url = "https://pypi.org/simple"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bubseek"]
@@ -99,5 +104,3 @@ ignore = [
 
 [tool.ruff.format]
 preview = true
-
-
