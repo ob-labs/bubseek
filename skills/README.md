@@ -1,7 +1,7 @@
 # Skills
 
-This directory is reserved for skill-source examples and downstream packaging experiments.
+This directory contains builtin skill source files for `bubseek`.
 
-For this repository itself, builtin skills are shipped directly from `bub_skills/` and do not require a separate sync step.
+During wheel builds, these files are staged into `bub_skills/`. Users do not need to run a separate sync step for them.
 
 If you are building a downstream distribution and want to vendor remote skills at build time, use `pdm-build-bub` from your own `pyproject.toml`.

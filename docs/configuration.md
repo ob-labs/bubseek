@@ -43,7 +43,7 @@ OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 
 ## Builtin skills
 
-This repository ships builtin skills directly inside `bub_skills/`. Users do not need to run a separate sync command for them.
+Builtin skill source files live in `skills/`. During wheel builds they are staged into `bub_skills/`, which Bub already knows how to discover. Users do not need to run a separate sync command for them.
 
 ## Advanced: downstream skill packaging
 

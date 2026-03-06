@@ -49,7 +49,7 @@ build-backend = "pdm.backend"
 [tool.pdm.build]
 includes = [
     "src/bubseek",
-    "bub_skills",
+    "skills",
 ]
 
 # Lock file is always resolved against PyPI. For faster install during dev, use:
