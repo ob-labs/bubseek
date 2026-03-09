@@ -25,6 +25,7 @@ dependencies = [
     "bub-web-search",
     "bub-tapestore-sqlalchemy",
     "pyobvector>=0.2.22",
+    "bubseek-schedule",
 ]
 
 [project.urls]
@@ -72,13 +73,19 @@ bub = { git = "https://github.com/bubbuild/bub.git" }
 bub-feishu = { git = "https://github.com/bubbuild/bub-contrib.git", subdirectory = "packages/bub-feishu" }
 bub-web-search = { git = "https://github.com/bubbuild/bub-contrib.git", subdirectory = "packages/bub-web-search" }
 bub-tapestore-sqlalchemy = { git = "https://github.com/bubbuild/bub-contrib.git", subdirectory = "packages/bub-tapestore-sqlalchemy" }
+bubseek-schedule = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "contrib/bubseek-schedule",
+]
 
 [tool.ty.environment]
 python = "./.venv"
 python-version = "3.12"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "contrib/bubseek-schedule/src/tests"]
 
 [tool.ruff]
 target-version = "py312"
@@ -127,6 +134,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
+"contrib/*/src/tests/*" = ["S101"]
 
 [tool.ruff.format]
 preview = true

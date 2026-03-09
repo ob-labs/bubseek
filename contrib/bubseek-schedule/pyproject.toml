@@ -1,0 +1,27 @@
+[project]
+name = "bubseek-schedule"
+version = "0.1.0"
+description = "Scheduling tools for Bubseek (OceanBase/SeekDB job store)"
+authors = [{ name = "Chojan Shang", email = "psiace@apache.org" }]
+requires-python = ">=3.12"
+dependencies = [
+    "apscheduler>=3.11.2",
+    "bub",
+    "bubseek",
+    "loguru",
+]
+
+[tool.uv.sources]
+bubseek = { workspace = true }
+bub = { git = "https://github.com/bubbuild/bub.git" }
+
+[project.entry-points."bub"]
+schedule = "bubseek_schedule.plugin:main"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm.build]
+package-dir = "src"
+includes = ["src/bubseek_schedule"]
