@@ -5,8 +5,6 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import pytest
-
 os.environ.pop("BUB_TAPESTORE_SQLALCHEMY_URL", None)
 
 
@@ -19,9 +17,7 @@ def test_jobstore_in_memory():
     scheduler = BackgroundScheduler(jobstores={"default": store})
     scheduler.start()
 
-    job = scheduler.add_job(
-        "bubseek_schedule.jobs:_noop", "date", run_date=datetime.now(), id="test-1"
-    )
+    scheduler.add_job("bubseek_schedule.jobs:_noop", "date", run_date=datetime.now(), id="test-1")
     assert store.lookup_job("test-1") is not None
     jobs = store.get_all_jobs()
     assert len(jobs) == 1
@@ -39,7 +35,7 @@ def test_jobstore_tapestore_sqlite_same_db():
         url = f"sqlite+pysqlite:///{db_path}"
 
         # Simulate tapestore having a table
-        from sqlalchemy import MetaData, Table, Column, String, create_engine, text
+        from sqlalchemy import Column, MetaData, String, Table, create_engine, text
 
         engine = create_engine(url)
         metadata = MetaData()
@@ -55,16 +51,12 @@ def test_jobstore_tapestore_sqlite_same_db():
         scheduler.start()
 
         run_date = datetime.now() + timedelta(hours=1)  # Future so scheduler won't run/remove before shutdown
-        scheduler.add_job(
-            "bubseek_schedule.jobs:_noop", "date", run_date=run_date, id="test-2"
-        )
+        scheduler.add_job("bubseek_schedule.jobs:_noop", "date", run_date=run_date, id="test-2")
         assert store.lookup_job("test-2") is not None
 
         # Verify both tables exist in same DB
         with engine.connect() as conn:
-            tables = conn.execute(
-                text("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-            ).fetchall()
+            tables = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")).fetchall()
         table_names = [t[0] for t in tables]
         assert "apscheduler_jobs" in table_names
         assert "tapestore_dummy" in table_names

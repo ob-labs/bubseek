@@ -6,14 +6,13 @@ import pickle
 import threading
 from datetime import datetime
 
-import bubseek.oceanbase  # noqa: F401 - register mysql+oceanbase dialect
-
 from apscheduler.job import Job
 from apscheduler.jobstores.base import BaseJobStore, ConflictingIdError, JobLookupError
 from loguru import logger
 from sqlalchemy import case, create_engine, select
 from sqlalchemy.orm import sessionmaker
 
+import bubseek.oceanbase  # noqa: F401 - register mysql+oceanbase dialect
 from bubseek.config import BubSeekSettings
 
 
@@ -35,9 +34,7 @@ def _get_jobstore_url() -> str:
 def _normalize_url(url: str) -> str:
     """Use mysql+oceanbase for pyobvector dialect when mysql is configured."""
     if "mysql" in url.lower() and "oceanbase" not in url.lower():
-        return url.replace("mysql+pymysql", "mysql+oceanbase", 1).replace(
-            "mysql://", "mysql+oceanbase://", 1
-        )
+        return url.replace("mysql+pymysql", "mysql+oceanbase", 1).replace("mysql://", "mysql+oceanbase://", 1)
     return url
 
 
@@ -81,10 +78,10 @@ class OceanBaseJobStore(BaseJobStore):
             job = pickle.loads(data)  # noqa: S301
             job._scheduler = self._scheduler
             job._jobstore_alias = self._alias
-            return job
         except Exception as e:
             logger.error(f"Error deserializing job: {e}")
             return None
+        return job
 
     def start(self, scheduler, alias: str) -> None:
         super().start(scheduler, alias)
@@ -94,14 +91,11 @@ class OceanBaseJobStore(BaseJobStore):
             self._engine.dispose()
 
     def lookup_job(self, job_id: str) -> Job | None:
-        with self._lock:
-            with self._session_factory() as session:
-                row = session.execute(
-                    select(self._table).where(self._table.c.id == job_id)
-                ).first()
-                if row:
-                    return self._deserialize_job(row.job_state)
-                return None
+        with self._lock, self._session_factory() as session:
+            row = session.execute(select(self._table).where(self._table.c.id == job_id)).first()
+            if row:
+                return self._deserialize_job(row.job_state)
+            return None
 
     def get_due_jobs(self, now: datetime) -> list[Job]:
         with self._lock:
@@ -121,16 +115,15 @@ class OceanBaseJobStore(BaseJobStore):
             return due_jobs
 
     def get_next_run_time(self) -> datetime | None:
-        with self._lock:
-            with self._session_factory() as session:
-                stmt = (
-                    select(self._table.c.next_run_time)
-                    .where(self._table.c.next_run_time.isnot(None))
-                    .order_by(self._table.c.next_run_time)
-                    .limit(1)
-                )
-                row = session.execute(stmt).first()
-                return row[0] if row else None
+        with self._lock, self._session_factory() as session:
+            stmt = (
+                select(self._table.c.next_run_time)
+                .where(self._table.c.next_run_time.isnot(None))
+                .order_by(self._table.c.next_run_time)
+                .limit(1)
+            )
+            row = session.execute(stmt).first()
+            return row[0] if row else None
 
     def get_all_jobs(self) -> list[Job]:
         with self._lock:
@@ -148,49 +141,42 @@ class OceanBaseJobStore(BaseJobStore):
             return jobs
 
     def add_job(self, job: Job) -> None:
-        with self._lock:
-            with self._session_factory() as session:
-                existing = session.execute(
-                    select(self._table).where(self._table.c.id == job.id)
-                ).first()
-                if existing:
-                    raise ConflictingIdError(job.id)
-                session.execute(
-                    self._table.insert().values(
-                        id=job.id,
-                        next_run_time=job.next_run_time,
-                        job_state=self._serialize_job(job),
-                    )
+        with self._lock, self._session_factory() as session:
+            existing = session.execute(select(self._table).where(self._table.c.id == job.id)).first()
+            if existing:
+                raise ConflictingIdError(job.id)
+            session.execute(
+                self._table.insert().values(
+                    id=job.id,
+                    next_run_time=job.next_run_time,
+                    job_state=self._serialize_job(job),
                 )
-                session.commit()
+            )
+            session.commit()
 
     def update_job(self, job: Job) -> None:
-        with self._lock:
-            with self._session_factory() as session:
-                result = session.execute(
-                    self._table.update()
-                    .where(self._table.c.id == job.id)
-                    .values(
-                        next_run_time=job.next_run_time,
-                        job_state=self._serialize_job(job),
-                    )
+        with self._lock, self._session_factory() as session:
+            result = session.execute(
+                self._table
+                .update()
+                .where(self._table.c.id == job.id)
+                .values(
+                    next_run_time=job.next_run_time,
+                    job_state=self._serialize_job(job),
                 )
-                if getattr(result, "rowcount", 0) == 0:
-                    raise JobLookupError(job.id)
-                session.commit()
+            )
+            if getattr(result, "rowcount", 0) == 0:
+                raise JobLookupError(job.id)
+            session.commit()
 
     def remove_job(self, job_id: str) -> None:
-        with self._lock:
-            with self._session_factory() as session:
-                result = session.execute(
-                    self._table.delete().where(self._table.c.id == job_id)
-                )
-                if getattr(result, "rowcount", 0) == 0:
-                    raise JobLookupError(job_id)
-                session.commit()
+        with self._lock, self._session_factory() as session:
+            result = session.execute(self._table.delete().where(self._table.c.id == job_id))
+            if getattr(result, "rowcount", 0) == 0:
+                raise JobLookupError(job_id)
+            session.commit()
 
     def remove_all_jobs(self) -> None:
-        with self._lock:
-            with self._session_factory() as session:
-                session.execute(self._table.delete())
-                session.commit()
+        with self._lock, self._session_factory() as session:
+            session.execute(self._table.delete())
+            session.commit()

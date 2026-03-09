@@ -16,19 +16,13 @@ from bubseek_schedule.jobs import run_scheduled_reminder
 
 def _ensure_scheduler(state: dict) -> BaseScheduler:
     if "scheduler" not in state:
-        raise RuntimeError(
-            "scheduler not found in state, is ScheduleImpl plugin loaded?"
-        )
+        raise RuntimeError("scheduler not found in state, is ScheduleImpl plugin loaded?")
     return cast(BaseScheduler, state["scheduler"])
 
 
 class ScheduleAddInput(BaseModel):
-    after_seconds: int | None = Field(
-        None, description="If set, schedule to run after this many seconds from now"
-    )
-    interval_seconds: int | None = Field(
-        None, description="If set, repeat at this interval"
-    )
+    after_seconds: int | None = Field(None, description="If set, schedule to run after this many seconds from now")
+    interval_seconds: int | None = Field(None, description="If set, repeat at this interval")
     cron: str | None = Field(
         None,
         description="If set, run with cron expression in crontab format: minute hour day month day_of_week",
@@ -44,9 +38,7 @@ def schedule_add(params: ScheduleAddInput, context: ToolContext) -> str:
     """Schedule a reminder message to be sent to current session in the future."""
     job_id = str(uuid.uuid4())[:8]
     if params.after_seconds is not None:
-        trigger = DateTrigger(
-            run_date=datetime.now(UTC) + timedelta(seconds=params.after_seconds)
-        )
+        trigger = DateTrigger(run_date=datetime.now(UTC) + timedelta(seconds=params.after_seconds))
     elif params.interval_seconds is not None:
         trigger = IntervalTrigger(seconds=params.interval_seconds)
     elif params.cron:
@@ -55,9 +47,7 @@ def schedule_add(params: ScheduleAddInput, context: ToolContext) -> str:
         except ValueError as exc:
             raise RuntimeError(f"invalid cron expression: {params.cron}") from exc
     else:
-        raise RuntimeError(
-            "One of after_seconds, interval_seconds, or cron must be set"
-        )
+        raise RuntimeError("One of after_seconds, interval_seconds, or cron must be set")
     scheduler = _ensure_scheduler(context.state)
     workspace = context.state.get("_runtime_workspace")
     try:

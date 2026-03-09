@@ -135,6 +135,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
 "contrib/*/src/tests/*" = ["S101"]
+"contrib/*/src/**/*.py" = ["TRY003"]
 
 [tool.ruff.format]
 preview = true

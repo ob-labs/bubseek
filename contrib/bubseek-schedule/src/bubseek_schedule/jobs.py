@@ -13,9 +13,7 @@ def _noop() -> None:
     pass
 
 
-async def run_scheduled_reminder(
-    message: str, session_id: str, workspace: str | None = None
-) -> None:
+async def run_scheduled_reminder(message: str, session_id: str, workspace: str | None = None) -> None:
     framework = BubFramework()
     framework.load_hooks()
     if workspace:
