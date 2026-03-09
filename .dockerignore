@@ -1,0 +1,19 @@
+# Exclude from Docker build context
+.git
+.venv
+references/
+*.md
+!README.md
+dist/
+.pdm-build/
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.eggs/
+*.egg-info/
+htmlcov/
+.coverage
+.tox/
+.nox/

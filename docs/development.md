@@ -43,7 +43,7 @@ make build
 ```
 
 The wheel includes builtin skills from `bub_skills/`.
-The source files for those builtin skills live in `skills/`; they are staged into `bub_skills/` during the build.
+The source files for those builtin skills live in `src/bub_skills/`.
 
 ## Docs
 

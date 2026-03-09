@@ -41,12 +41,12 @@ def test_pyproject_includes_builtin_skills_in_wheel() -> None:
 
     assert data["tool"]["pdm"]["build"]["includes"] == [
         "src/bubseek",
-        "skills",
+        "src/bub_skills",
     ]
 
 
 def test_bundled_skill_has_valid_frontmatter() -> None:
-    skill_dir = REPO_ROOT / "skills" / "bubseek-bootstrap"
+    skill_dir = REPO_ROOT / "src" / "bub_skills" / "bubseek-bootstrap"
     metadata = _read_skill(skill_dir, source="builtin")
 
     assert metadata is not None

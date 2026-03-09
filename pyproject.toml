@@ -49,16 +49,13 @@ build-backend = "pdm.backend"
 [tool.pdm.build]
 includes = [
     "src/bubseek",
-    "skills",
+    "src/bub_skills",
 ]
 
 # Lock file is always resolved against PyPI. For faster install during dev, use:
 #   UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple uv sync
 [tool.uv]
 index-url = "https://pypi.org/simple"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/bubseek"]
 
 [tool.ty.environment]
 python = "./.venv"
