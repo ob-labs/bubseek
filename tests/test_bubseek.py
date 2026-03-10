@@ -45,7 +45,9 @@ def test_pyproject_pins_bub_and_bundled_plugins() -> None:
     assert sources["bub-feishu"].get("git") == "https://github.com/bubbuild/bub-contrib.git"
     assert "bubseek-dingtalk" in sources
     assert sources["bubseek-dingtalk"].get("workspace") is True
-    assert data["build-system"]["requires"] == ["pdm-backend"]
+    requires = data["build-system"]["requires"]
+    assert "pdm-backend" in requires
+    assert any("pdm-build-bub" in r for r in requires)
 
 
 def test_pyproject_includes_builtin_skills_in_wheel() -> None:
