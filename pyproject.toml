@@ -59,13 +59,19 @@ dev = [
 ]
 
 [build-system]
-requires = ["pdm-backend"]
+requires = ["pdm-backend", "pdm-build-bub>=0.1.0a1"]
 build-backend = "pdm.backend"
 
 [tool.pdm.build]
 includes = [
     "src/bubseek",
     "src/bub_skills",
+]
+
+# Build-time: vendor remote skills into bub_skills/ (merged with src/bub_skills)
+[tool.bub]
+skills = [
+    { git = "https://github.com/PsiACE/skills.git", subpath = "skills", include = ["friendly-python", "piglet"] },
 ]
 
 # Lock file is always resolved against PyPI. For faster install during dev, use:

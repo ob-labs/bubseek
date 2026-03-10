@@ -76,6 +76,8 @@ BUB_API_BASE=https://openrouter.ai/api/v1
 
 Builtin skill source files live in `src/bub_skills/`. They are packaged into `bub_skills/` in the wheel, which Bub already knows how to discover. Users do not need to run a separate sync command for them.
 
+bubseek also vendors `friendly-python` and `piglet` from [PsiACE/skills](https://github.com/PsiACE/skills) at build time via `pdm-build-bub`; these are merged into the wheel under `bub_skills/`.
+
 ## Advanced: downstream skill packaging
 
 Most users can skip this section.
@@ -84,12 +86,12 @@ If you are building your own downstream Bub distribution and want to vendor remo
 
 ```toml
 [build-system]
-requires = ["pdm-backend", "pdm-build-bub==0.1.0a1"]
+requires = ["pdm-backend", "pdm-build-bub>=0.1.0a1"]
 build-backend = "pdm.backend"
 
 [tool.bub]
 skills = [
-    { git = "PsiACE/skills", include = ["python-*"] },
+    { git = "PsiACE/skills", subpath = "skills", include = ["friendly-python", "piglet"] },
     { git = "https://github.com/example/skills.git", ref = "v1.2.3", subpath = "skills/review" },
 ]
 ```
