@@ -35,9 +35,10 @@ If you do not want them installed by default, put them under `optional-dependenc
 ```toml
 [project.optional-dependencies]
 feishu = ["bub-feishu"]
+dingtalk = ["bubseek-dingtalk"]
 ```
 
-Install with: `uv sync --extra feishu` or `pip install bubseek[feishu]`.
+Install with: `uv sync --extra feishu` or `pip install bubseek[feishu]` (Feishu); `uv sync --extra dingtalk` or `pip install bubseek[dingtalk]` (DingTalk).
 
 ## Runtime credentials
 
@@ -66,6 +67,9 @@ BUB_API_BASE=https://openrouter.ai/api/v1
 | `BUB_SEARCH_OLLAMA_API_BASE` | Ollama API base (default: `https://ollama.com/api`) |
 | `BUB_FEISHU_APP_ID` | Required for Feishu channel (optional extra: `bubseek[feishu]`) |
 | `BUB_FEISHU_APP_SECRET` | Required for Feishu channel |
+| `BUB_DINGTALK_CLIENT_ID` | AppKey for DingTalk channel (optional extra: `bubseek[dingtalk]`) |
+| `BUB_DINGTALK_CLIENT_SECRET` | AppSecret for DingTalk channel |
+| `BUB_DINGTALK_ALLOW_USERS` | Comma-separated staff_ids, or `*` for all |
 | `BUB_TAPESTORE_SQLALCHEMY_URL` | SQLAlchemy tape store URL (bundled) |
 
 ## Builtin skills

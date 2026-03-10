@@ -29,6 +29,7 @@ dependencies = [
 
 [project.optional-dependencies]
 feishu = ["bub-feishu"]
+dingtalk = ["bubseek-dingtalk"]
 
 [project.urls]
 Homepage = "https://psiace.github.io/bubseek/"
@@ -48,6 +49,8 @@ dev = [
     "tox-uv>=1.29.0",
 
     "ty>=0.0.14",
+
+    "bubseek-dingtalk",
 
     "ruff>=0.14.14",
     "mkdocs>=1.6.1",
@@ -76,10 +79,12 @@ bub-feishu = { git = "https://github.com/bubbuild/bub-contrib.git", subdirectory
 bub-web-search = { git = "https://github.com/bubbuild/bub-contrib.git", subdirectory = "packages/bub-web-search" }
 bub-tapestore-sqlalchemy = { git = "https://github.com/bubbuild/bub-contrib.git", subdirectory = "packages/bub-tapestore-sqlalchemy" }
 bubseek-schedule = { workspace = true }
+bubseek-dingtalk = { workspace = true }
 
 [tool.uv.workspace]
 members = [
     "contrib/bubseek-schedule",
+    "contrib/bubseek-dingtalk",
 ]
 
 [tool.ty.environment]

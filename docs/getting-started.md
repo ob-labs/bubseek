@@ -47,6 +47,7 @@ Contrib packages are standard Python packages. Add them with normal dependency m
 **Optional extras:**
 
 - **Feishu channel**: `uv sync --extra feishu` or `pip install bubseek[feishu]`
+- **DingTalk channel**: `uv sync --extra dingtalk` or `pip install bubseek[dingtalk]`
 
 **Add other contrib from Git:**
 
