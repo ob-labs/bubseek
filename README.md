@@ -38,7 +38,7 @@ BUB_API_BASE=https://openrouter.ai/api/v1
 
 ## Add contrib
 
-Contrib packages remain standard Python packages. Add them as normal dependencies:
+Contrib packages remain standard Python packages. Add them as normal dependencies. 
 
 ```toml
 [project]
@@ -53,6 +53,8 @@ Then sync your environment:
 ```bash
 uv sync
 ```
+
+- For Feishu channel, use the optional extra: `uv sync --extra feishu`.
 
 ## Documentation
 

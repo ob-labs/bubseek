@@ -32,8 +32,10 @@ def test_pyproject_pins_bub_and_bundled_plugins() -> None:
 
     deps = data["project"]["dependencies"]
     assert any("bub" in d for d in deps)
-    assert any("bub-feishu" in d for d in deps)
     assert any("bub-web-search" in d for d in deps)
+    optional = data["project"].get("optional-dependencies", {})
+    assert "feishu" in optional
+    assert "bub-feishu" in optional["feishu"]
     assert any("bub-tapestore-sqlalchemy" in d for d in deps)
 
     sources = data.get("tool", {}).get("uv", {}).get("sources", {})

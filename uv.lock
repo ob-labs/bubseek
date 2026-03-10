@@ -312,7 +312,6 @@ version = "0.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "bub" },
-    { name = "bub-feishu" },
     { name = "bub-tapestore-sqlalchemy" },
     { name = "bub-web-search" },
     { name = "bubseek-schedule" },
@@ -321,6 +320,11 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "republic" },
     { name = "typer" },
+]
+
+[package.optional-dependencies]
+feishu = [
+    { name = "bub-feishu" },
 ]
 
 [package.dev-dependencies]
@@ -338,7 +342,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bub", git = "https://github.com/bubbuild/bub.git" },
-    { name = "bub-feishu", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-feishu" },
+    { name = "bub-feishu", marker = "extra == 'feishu'", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-feishu" },
     { name = "bub-tapestore-sqlalchemy", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-tapestore-sqlalchemy" },
     { name = "bub-web-search", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-web-search" },
     { name = "bubseek-schedule", editable = "contrib/bubseek-schedule" },
@@ -348,6 +352,7 @@ requires-dist = [
     { name = "republic", specifier = ">=0.5.4" },
     { name = "typer", specifier = ">=0.12.0" },
 ]
+provides-extras = ["feishu"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -14,13 +14,15 @@ Scheduling plugin for bubseek with OceanBase/SeekDB job store.
 
 ## Installation
 
+bubseek ships `bubseek-schedule` by default. No extra install needed for normal use.
+
 From bubseek repo (development):
 
 ```bash
 uv add ./contrib/bubseek-schedule
 ```
 
-Or as dependency:
+Or as dependency (when not using bubseek default):
 
 ```toml
 [project]

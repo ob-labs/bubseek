@@ -30,7 +30,14 @@ dependencies = [
 ]
 ```
 
-If you do not want them installed by default, put them under `optional-dependencies` instead.
+If you do not want them installed by default, put them under `optional-dependencies` instead:
+
+```toml
+[project.optional-dependencies]
+feishu = ["bub-feishu"]
+```
+
+Install with: `uv sync --extra feishu` or `pip install bubseek[feishu]`.
 
 ## Runtime credentials
 
@@ -57,7 +64,7 @@ BUB_API_BASE=https://openrouter.ai/api/v1
 | `BUB_TELEGRAM_ALLOW_CHATS` | Comma-separated chat allowlist |
 | `BUB_SEARCH_OLLAMA_API_KEY` | Required for web.search tool (bundled) |
 | `BUB_SEARCH_OLLAMA_API_BASE` | Ollama API base (default: `https://ollama.com/api`) |
-| `BUB_FEISHU_APP_ID` | Required for Feishu channel (bundled) |
+| `BUB_FEISHU_APP_ID` | Required for Feishu channel (optional extra: `bubseek[feishu]`) |
 | `BUB_FEISHU_APP_SECRET` | Required for Feishu channel |
 | `BUB_TAPESTORE_SQLALCHEMY_URL` | SQLAlchemy tape store URL (bundled) |
 

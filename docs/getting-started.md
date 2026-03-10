@@ -42,14 +42,19 @@ BUB_API_BASE=https://openrouter.ai/api/v1
 
 ## Add contrib
 
-Contrib packages are standard Python packages. Add them with normal dependency management:
+Contrib packages are standard Python packages. Add them with normal dependency management. bubseek ships `bub-web-search`, `bub-tapestore-sqlalchemy`, and `bubseek-schedule` by default.
+
+**Optional extras:**
+
+- **Feishu channel**: `uv sync --extra feishu` or `pip install bubseek[feishu]`
+
+**Add other contrib from Git:**
 
 ```toml
 [project]
 dependencies = [
     "bub==0.3.0a1",
     "bub-codex @ git+https://github.com/bubbuild/bub-contrib.git@main#subdirectory=packages/bub-codex",
-    "bub-schedule @ git+https://github.com/bubbuild/bub-contrib.git@main#subdirectory=packages/bub-schedule",
 ]
 ```
 
