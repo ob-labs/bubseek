@@ -17,8 +17,8 @@ RUN uv sync --frozen --no-install-project
 # Copy the project into the image
 COPY . /app
 
-# Sync the project
-RUN uv sync --frozen
+# Install project (non-editable) so pdm-build-bub runs and bundles skills into wheel
+RUN uv pip install .
 
 RUN chmod +x /app/entrypoint.sh
 
