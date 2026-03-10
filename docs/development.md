@@ -13,6 +13,8 @@ make install
 
 `make install` creates the virtual environment, installs dependencies, and installs pre-commit hooks.
 
+To get bundled skills (friendly-python, piglet) in dev, use non-editable install: `uv pip install .` after `uv sync`, or `uv build && uv pip install dist/*.whl`.
+
 ## Common commands
 
 | Command | Description |
