@@ -4,8 +4,9 @@ This page explains what bubseek is responsible for, and what it deliberately lea
 
 ## What bubseek does
 
-- provides the `bubseek` executable as a thin wrapper over `bub`
+- provides the `bubseek` executable as a single bootstrap entry point over `bub`
 - forwards `.env` values to the Bub subprocess
+- normalizes the default tape store to local SQLite while preserving explicit SeekDB/OceanBase support
 - ships a small set of builtin skills with the package
 - pins a practical default Bub runtime version
 
@@ -24,7 +25,7 @@ Bub remains the runtime, command surface, and extension host.
 
 ### bubseek
 
-bubseek is the distribution layer: packaging, wrapper behavior, and builtin defaults.
+bubseek is the distribution layer: packaging, bootstrap behavior, runtime defaults, and builtin skills.
 
 ### Python packaging
 
@@ -37,5 +38,6 @@ From a user perspective, the benefit is simple: there is less to learn.
 - run `bubseek` the same way you would run `bub`
 - add contrib the same way you add any Python dependency
 - use builtin skills without an extra sync step
+- treat generated marimo notebooks as runtime artifacts under `insights/`, not committed templates
 
 That keeps the distribution practical without introducing a second package-management system around Bub.

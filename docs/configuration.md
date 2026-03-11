@@ -71,10 +71,12 @@ BUB_API_BASE=https://openrouter.ai/api/v1
 | `BUB_DINGTALK_CLIENT_ID` | AppKey for DingTalk channel (optional extra: `bubseek[dingtalk]`) |
 | `BUB_DINGTALK_CLIENT_SECRET` | AppSecret for DingTalk channel |
 | `BUB_DINGTALK_ALLOW_USERS` | Comma-separated staff_ids, or `*` for all |
-| `BUB_MARIMO_HOST` | Marimo channel bind host (default: `0.0.0.0`) |
+| `BUB_MARIMO_HOST` | Marimo channel bind host (default: `127.0.0.1`) |
 | `BUB_MARIMO_PORT` | Marimo channel bind port (default: `2718`) |
 | `BUB_MARIMO_WORKSPACE` | Workspace for insights (default: `BUB_WORKSPACE_PATH` or `.`) |
 | `BUB_TAPESTORE_SQLALCHEMY_URL` | SQLAlchemy tape store URL (bundled) |
+
+When `BUB_TAPESTORE_SQLALCHEMY_URL` is unset, bubseek resolves the same default SQLite path as Bub's SQLAlchemy tape store plugin. This is the recommended local and test setup. SeekDB and OceanBase remain supported through explicit `mysql+oceanbase://...` URLs or the `OCEANBASE_*` variables.
 
 ## Builtin skills
 
@@ -86,6 +88,8 @@ The optional `bubseek[marimo]` extra provides:
 - **MarimoChannel** — inbound WebSocket for gateway; chat dashboard at `http://0.0.0.0:2718/`
 - **marimo skill** — output data insights as marimo `.py` notebooks; index of charts in `{workspace}/insights/`
 - References [marimo-team/skills](https://github.com/marimo-team/skills) marimo-notebook conventions
+
+The dashboard, index, and starter visualization are generated into `{workspace}/insights/` at runtime from one canonical template source. They should not be hand-edited inside the repository.
 
 Run `bubseek gateway --enable-channel marimo` to enable the marimo dashboard.
 

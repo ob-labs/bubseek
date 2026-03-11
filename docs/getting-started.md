@@ -40,6 +40,8 @@ BUB_API_KEY=sk-or-v1-...
 BUB_API_BASE=https://openrouter.ai/api/v1
 ```
 
+If you do not configure a tape store URL, bubseek follows Bub's SQLite default under `BUB_HOME/tapes.db`. For production SeekDB or OceanBase deployments, set `BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://...` or the `OCEANBASE_*` variables before running `bubseek`.
+
 ## Add contrib
 
 Contrib packages are standard Python packages. Add them with normal dependency management. bubseek ships `bub-web-search`, `bub-tapestore-sqlalchemy`, and `bubseek-schedule` by default.

@@ -8,6 +8,8 @@
 
 bubseek turns fragmented data across operational systems, repositories, and agent runtime traces into **explainable, actionable, and shareable insights** without heavy ETL. It keeps the Bub runtime and extension model while packaging a practical default distribution for real deployments.
 
+`bubseek` now boots through a single distribution entry point: local runs default to SQLite tape storage, while SeekDB/OceanBase remains a first-class production target through the SQLAlchemy URL or `OCEANBASE_*` settings.
+
 ## Features
 
 - **Lightweight and on-demand** — Trigger analysis when needed instead of maintaining large offline pipelines.
@@ -35,6 +37,8 @@ BUB_MODEL=openrouter:qwen/qwen3-coder-next
 BUB_API_KEY=sk-or-v1-...
 BUB_API_BASE=https://openrouter.ai/api/v1
 ```
+
+For local testing, you can keep the tape store unset and use the default SQLite database under `BUB_HOME`. For SeekDB or OceanBase, configure `BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://...` or the matching `OCEANBASE_*` variables.
 
 ## Add contrib
 
