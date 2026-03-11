@@ -1,21 +1,18 @@
-"""
-E2E tests for Marimo channel: gateway, gallery, dashboard, index, example, chat API.
-
-Requires: .env with OPENROUTER_API_KEY (or equivalent) for chat to get agent response.
-Run: uv run pytest contrib/bubseek-marimo/tests/test_marimo_e2e.py -v
-"""
+"""E2E tests for the Marimo channel, starter notebooks, and chat API."""
 
 from __future__ import annotations
 
 import asyncio
-import json
+import contextlib
+import http.client
 import os
-import signal
+import shutil
 import socket
 import subprocess
 import sys
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -46,7 +43,7 @@ def _port_ready(host: str, port: int, timeout: float = 2.0) -> bool:
     try:
         with socket.create_connection((host, port), timeout=timeout):
             return True
-    except (socket.error, OSError):
+    except OSError:
         return False
 
 
@@ -66,17 +63,23 @@ def _wait_for_ports(timeout: float = READY_TIMEOUT) -> bool:
 
 
 def _http_get(url: str) -> tuple[int, str]:
-    import urllib.error
-    import urllib.request
+    parts = urlsplit(url)
+    if parts.scheme != "http" or parts.hostname is None or parts.port is None:
+        return -1, f"Unsupported URL: {url}"
 
+    path = parts.path or "/"
+    if parts.query:
+        path = f"{path}?{parts.query}"
+
+    connection = http.client.HTTPConnection(parts.hostname, parts.port, timeout=REQUEST_TIMEOUT)
     try:
-        req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
-            return resp.status, resp.read().decode("utf-8", errors="replace")
-    except urllib.error.HTTPError as e:
-        return e.code, e.read().decode("utf-8", errors="replace") if e.fp else str(e)
-    except Exception as e:
-        return -1, str(e)
+        connection.request("GET", path)
+        response = connection.getresponse()
+        return response.status, response.read().decode("utf-8", errors="replace")
+    except Exception as exc:
+        return -1, str(exc)
+    finally:
+        connection.close()
 
 
 def _assert_notebook_loads(filename: str) -> tuple[int, str]:
@@ -114,19 +117,11 @@ def test_workspace_resolution_falls_back_to_cwd(monkeypatch, tmp_path) -> None:
     assert channel._insights_dir() == tmp_path.resolve() / "insights"
 
 
-def test_example_template_contains_scanner_markers(monkeypatch) -> None:
-    from bubseek_marimo.channel import MarimoChannel
+def test_example_template_contains_scanner_markers() -> None:
+    from bubseek_marimo.notebooks import EXAMPLE_NOTEBOOK
 
-    monkeypatch.delenv("BUB_MARIMO_WORKSPACE", raising=False)
-    monkeypatch.delenv("BUB_WORKSPACE_PATH", raising=False)
-    channel = MarimoChannel(_noop_handler)
-    rendered = channel._render_notebook_template(
-        channel._EXAMPLE_TEMPLATE,
-        Path("/tmp/example-workspace/insights"),
-    )
-
-    assert "import marimo" in rendered
-    assert "marimo.App" in rendered
+    assert "import marimo" in EXAMPLE_NOTEBOOK
+    assert "marimo.App" in EXAMPLE_NOTEBOOK
 
 
 @pytest.fixture(scope="module")
@@ -143,9 +138,15 @@ def gateway_process():
     env["BUB_MARIMO_PORT"] = str(PORT)
     env["BUB_MARIMO_MARIMO_PORT"] = str(MARIMO_PORT)
     env["BUB_WORKSPACE_PATH"] = str(workspace)
+    env["BUB_RUNTIME_ENABLED"] = "0"
+    if shutil.which("marimo") is None:
+        pytest.skip("marimo executable is not available in the current environment")
+    uv_executable = shutil.which("uv")
+    if uv_executable is None:
+        pytest.fail("uv executable is required for marimo gateway tests")
 
-    proc = subprocess.Popen(
-        ["uv", "run", "bubseek", "gateway", "--enable-channel", "marimo"],
+    proc = subprocess.Popen(  # noqa: S603
+        [uv_executable, "run", "bubseek", "gateway", "--enable-channel", "marimo"],
         cwd=str(REPO_ROOT),
         env=env,
         stdout=subprocess.DEVNULL,
@@ -167,7 +168,8 @@ def gateway_process():
             proc.kill()
             proc.wait(timeout=5)
         except Exception:
-            pass
+            with contextlib.suppress(Exception):
+                proc.kill()
 
 
 def test_gallery_loads(gateway_process) -> None:
@@ -180,7 +182,7 @@ def test_gallery_loads(gateway_process) -> None:
 
 def test_dashboard_loads(gateway_process) -> None:
     """Dashboard page loads without internal error."""
-    status, body = _assert_notebook_loads("dashboard.py")
+    _status, body = _assert_notebook_loads("dashboard.py")
     assert "marimo-filename" in body or "dashboard" in body.lower()
 
 

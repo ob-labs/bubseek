@@ -1,11 +1,13 @@
-"""Configuration via pydantic-settings."""
+"""Configuration for Bubseek bootstrap and tape store resolution."""
 
 from __future__ import annotations
 
+from pathlib import Path
 from urllib.parse import urlparse
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy import URL
 
 _SETTINGS_CONFIG = SettingsConfigDict(
     env_file=".env",
@@ -19,6 +21,7 @@ class DatabaseSettings(BaseSettings):
 
     model_config = _SETTINGS_CONFIG
 
+    bub_home: Path = Field(default=Path.home() / ".bub", validation_alias="BUB_HOME")
     tapestore_sqlalchemy_url: str = Field(default="", validation_alias="BUB_TAPESTORE_SQLALCHEMY_URL")
     oceanbase_host: str = Field(default="127.0.0.1", validation_alias="OCEANBASE_HOST")
     oceanbase_port: int = Field(default=2881, validation_alias="OCEANBASE_PORT")
@@ -26,10 +29,23 @@ class DatabaseSettings(BaseSettings):
     oceanbase_password: str = Field(default="", validation_alias="OCEANBASE_PASSWORD")
     oceanbase_database: str = Field(default="bub", validation_alias="OCEANBASE_DATABASE")
 
+    @property
+    def resolved_tapestore_url(self) -> str:
+        """Return the explicit tape store URL or Bub's default SQLite path."""
+        if self.tapestore_sqlalchemy_url.strip():
+            return self.tapestore_sqlalchemy_url.strip()
+        database_path = (self.bub_home.expanduser() / "tapes.db").resolve()
+        return str(URL.create("sqlite+pysqlite", database=str(database_path)))
+
+    @property
+    def backend_name(self) -> str:
+        """Return the normalized SQLAlchemy backend name for the resolved URL."""
+        scheme = urlparse(self.resolved_tapestore_url).scheme.lower()
+        return scheme.split("+", 1)[0]
+
     def mysql_connection_params(self) -> tuple[str, int, str, str, str] | None:
-        """Return (host, port, user, password, database) when using MySQL, else None."""
-        url = self.tapestore_sqlalchemy_url or ""
-        if not url or "mysql" not in url.lower():
+        """Return connection params when using a MySQL-compatible backend."""
+        if self.backend_name != "mysql":
             return None
         host = self.oceanbase_host
         port = self.oceanbase_port
@@ -37,7 +53,7 @@ class DatabaseSettings(BaseSettings):
         password = self.oceanbase_password
         database = self.oceanbase_database
         try:
-            parsed = urlparse(url)
+            parsed = urlparse(self.resolved_tapestore_url)
             if parsed.hostname:
                 host = parsed.hostname
             if parsed.port:

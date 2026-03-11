@@ -52,6 +52,7 @@ dev = [
     "ty>=0.0.14",
 
     "bubseek-dingtalk",
+    "bubseek-marimo",
 
     "ruff>=0.14.14",
     "mkdocs>=1.6.1",
