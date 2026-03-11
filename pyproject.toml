@@ -59,7 +59,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["pdm-backend", "pdm-build-bub>=0.1.0a1"]
+requires = ["pdm-backend", "pdm-build-bub>=0.1.0a2"]
 build-backend = "pdm.backend"
 
 [tool.pdm.build]
@@ -72,6 +72,8 @@ includes = [
 [tool.bub]
 skills = [
     { git = "https://github.com/PsiACE/skills.git", subpath = "skills", include = ["friendly-python", "piglet"] },
+    # marimo-team/skills, excluding conversion-from-elsewhere skills (jupyter-to-marimo, streamlit-to-marimo)
+    { git = "https://github.com/marimo-team/skills.git", subpath = "skills", include = ["add-molab-badge", "anywidget", "implement-paper", "marimo-batch", "marimo-notebook", "wasm-compatibility"] },
 ]
 
 # Lock file is always resolved against PyPI. For faster install during dev, use:

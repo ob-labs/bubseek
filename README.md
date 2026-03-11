@@ -71,8 +71,6 @@ make test
 make docs
 ```
 
-Bundled skills (friendly-python, piglet) are included when building a wheel. For editable installs (`uv sync`), use non-editable to get them: `uv pip install .` after `uv sync`, or `uv build && uv pip install dist/*.whl`.
-
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 ## License

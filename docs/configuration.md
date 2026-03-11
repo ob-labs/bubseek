@@ -78,8 +78,6 @@ Builtin skill source files live in `src/bub_skills/`. They are packaged into `bu
 
 bubseek also vendors `friendly-python` and `piglet` from [PsiACE/skills](https://github.com/PsiACE/skills) at build time via `pdm-build-bub`; these are merged into the wheel under `bub_skills/`.
 
-**Development**: `uv sync` uses editable install, so pdm-build-bub does not run. Use non-editable install to get the bundled skills: `uv pip install .` or `uv build && uv pip install dist/*.whl`.
-
 ## Advanced: downstream skill packaging
 
 Most users can skip this section.
