@@ -30,6 +30,7 @@ dependencies = [
 [project.optional-dependencies]
 feishu = ["bub-feishu"]
 dingtalk = ["bubseek-dingtalk"]
+marimo = ["bubseek-marimo"]
 
 [project.urls]
 Homepage = "https://psiace.github.io/bubseek/"
@@ -72,8 +73,6 @@ includes = [
 [tool.bub]
 skills = [
     { git = "https://github.com/PsiACE/skills.git", subpath = "skills", include = ["friendly-python", "piglet"] },
-    # marimo-team/skills, excluding conversion-from-elsewhere skills (jupyter-to-marimo, streamlit-to-marimo)
-    { git = "https://github.com/marimo-team/skills.git", subpath = "skills", include = ["add-molab-badge", "anywidget", "implement-paper", "marimo-batch", "marimo-notebook", "wasm-compatibility"] },
 ]
 
 # Lock file is always resolved against PyPI. For faster install during dev, use:
@@ -88,11 +87,13 @@ bub-web-search = { git = "https://github.com/bubbuild/bub-contrib.git", subdirec
 bub-tapestore-sqlalchemy = { git = "https://github.com/bubbuild/bub-contrib.git", subdirectory = "packages/bub-tapestore-sqlalchemy" }
 bubseek-schedule = { workspace = true }
 bubseek-dingtalk = { workspace = true }
+bubseek-marimo = { workspace = true }
 
 [tool.uv.workspace]
 members = [
     "contrib/bubseek-schedule",
     "contrib/bubseek-dingtalk",
+    "contrib/bubseek-marimo",
 ]
 
 [tool.ty.environment]
@@ -100,7 +101,7 @@ python = "./.venv"
 python-version = "3.12"
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "contrib/bubseek-schedule/src/tests", "contrib/bubseek-dingtalk/tests"]
+testpaths = ["tests", "contrib/bubseek-schedule/src/tests", "contrib/bubseek-dingtalk/tests", "contrib/bubseek-marimo/tests"]
 
 [tool.ruff]
 target-version = "py312"

@@ -1,0 +1,30 @@
+[project]
+name = "bubseek-marimo"
+version = "0.1.0"
+description = "Marimo channel for Bub — notebook skills and tooling"
+readme = "README.md"
+authors = [{ name = "Chojan Shang", email = "psiace@apache.org" }]
+requires-python = ">=3.12"
+dependencies = [
+    "bub",
+    "aiohttp>=3.9.0",
+    "marimo>=0.20.0",
+    "pydantic-settings>=2.0.0",
+]
+
+[project.entry-points."bub"]
+marimo = "bubseek_marimo.plugin"
+
+[build-system]
+requires = ["pdm-backend", "pdm-build-bub>=0.1.0a1"]
+build-backend = "pdm.backend"
+
+[tool.pdm.build]
+package-dir = "src"
+includes = ["src/bubseek_marimo", "src/bub_skills"]
+source-include = ["src/bub_skills/marimo/SKILL.md"]
+
+[tool.bub]
+skills = [
+    { git = "https://github.com/marimo-team/skills.git", subpath = "skills", include = ["add-molab-badge", "anywidget", "implement-paper", "marimo-batch", "marimo-notebook", "wasm-compatibility"] },
+]

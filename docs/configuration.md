@@ -36,9 +36,10 @@ If you do not want them installed by default, put them under `optional-dependenc
 [project.optional-dependencies]
 feishu = ["bub-feishu"]
 dingtalk = ["bubseek-dingtalk"]
+marimo = ["bubseek-marimo"]
 ```
 
-Install with: `uv sync --extra feishu` or `pip install bubseek[feishu]` (Feishu); `uv sync --extra dingtalk` or `pip install bubseek[dingtalk]` (DingTalk).
+Install with: `uv sync --extra feishu` or `pip install bubseek[feishu]` (Feishu); `uv sync --extra dingtalk` or `pip install bubseek[dingtalk]` (DingTalk); `uv sync --extra marimo` or `pip install bubseek[marimo]` (Marimo channel with bundled notebook skills).
 
 ## Runtime credentials
 
@@ -70,6 +71,9 @@ BUB_API_BASE=https://openrouter.ai/api/v1
 | `BUB_DINGTALK_CLIENT_ID` | AppKey for DingTalk channel (optional extra: `bubseek[dingtalk]`) |
 | `BUB_DINGTALK_CLIENT_SECRET` | AppSecret for DingTalk channel |
 | `BUB_DINGTALK_ALLOW_USERS` | Comma-separated staff_ids, or `*` for all |
+| `BUB_MARIMO_HOST` | Marimo channel bind host (default: `0.0.0.0`) |
+| `BUB_MARIMO_PORT` | Marimo channel bind port (default: `2718`) |
+| `BUB_MARIMO_WORKSPACE` | Workspace for insights (default: `BUB_WORKSPACE_PATH` or `.`) |
 | `BUB_TAPESTORE_SQLALCHEMY_URL` | SQLAlchemy tape store URL (bundled) |
 
 ## Builtin skills
@@ -77,6 +81,13 @@ BUB_API_BASE=https://openrouter.ai/api/v1
 Builtin skill source files live in `src/bub_skills/`. They are packaged into `bub_skills/` in the wheel, which Bub already knows how to discover. Users do not need to run a separate sync command for them.
 
 bubseek also vendors `friendly-python` and `piglet` from [PsiACE/skills](https://github.com/PsiACE/skills) at build time via `pdm-build-bub`; these are merged into the wheel under `bub_skills/`.
+
+The optional `bubseek[marimo]` extra provides:
+- **MarimoChannel** — inbound WebSocket for gateway; chat dashboard at `http://0.0.0.0:2718/`
+- **marimo skill** — output data insights as marimo `.py` notebooks; index of charts in `{workspace}/insights/`
+- References [marimo-team/skills](https://github.com/marimo-team/skills) marimo-notebook conventions
+
+Run `bubseek gateway --enable-channel marimo` to enable the marimo dashboard.
 
 ## Advanced: downstream skill packaging
 
