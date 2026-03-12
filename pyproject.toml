@@ -102,7 +102,9 @@ python = "./.venv"
 python-version = "3.12"
 
 [tool.ty.src]
-exclude = ["references"]
+# references/ = third-party or example code. insights/ = PEP 723 scripts (marimo, pandas, etc.)
+# whose deps are declared in-script only; CI does not install them for type-checking.
+exclude = ["references", "insights"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "contrib/bubseek-schedule/src/tests", "contrib/bubseek-dingtalk/tests", "contrib/bubseek-marimo/tests"]
