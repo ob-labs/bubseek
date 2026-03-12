@@ -48,7 +48,7 @@ def _(controls, mo):
         ],
         gap=0.75,
     )
-    header
+    header  # noqa: B018
     return (header,)
 
 
@@ -65,7 +65,7 @@ def _(data, metric, mo, scale):
         width = int((value / max_value) * 280 * factor)
         bars.append(
             f"""
-            <text x="10" y="{y}" font-size="13" fill="#334155">{row['month']}</text>
+            <text x="10" y="{y}" font-size="13" fill="#334155">{row["month"]}</text>
             <rect x="72" y="{y - 14}" rx="6" ry="6" width="{width}" height="20" fill="#2563eb"></rect>
             <text x="{82 + width}" y="{y}" font-size="12" fill="#0f172a">{value}</text>
             """
@@ -75,7 +75,7 @@ def _(data, metric, mo, scale):
     svg = f"""
     <svg width="420" height="{y}" viewBox="0 0 420 {y}" xmlns="http://www.w3.org/2000/svg">
       <rect width="100%" height="100%" fill="#f8fafc"></rect>
-      {''.join(bars)}
+      {"".join(bars)}
     </svg>
     """
 
@@ -87,7 +87,7 @@ def _(data, metric, mo, scale):
     )
     chart = mo.Html(svg)
     content = mo.vstack([summary, chart], gap=0.75)
-    content
+    content  # noqa: B018
     return (content,)
 
 

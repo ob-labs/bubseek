@@ -1,4 +1,5 @@
 """Bubseek Marimo dashboard — native marimo chat plus insights index."""
+
 # marimo.App (for directory scanner)
 import marimo as mo
 
@@ -76,12 +77,10 @@ def _(get_history, mo):
 def _(get_pending_submission, mo, set_pending_submission):
     def _submit(value):
         pending = get_pending_submission()
-        set_pending_submission(
-            {
-                "nonce": pending["nonce"] + 1,
-                "content": (value or "").strip(),
-            }
-        )
+        set_pending_submission({
+            "nonce": pending["nonce"] + 1,
+            "content": (value or "").strip(),
+        })
 
     chat_form = mo.ui.text_area(
         placeholder="Write a message to Bub. Prefix with ',' for commands.",
@@ -200,7 +199,7 @@ def _(chat_panel, index_panel, mo, title):
         ],
         gap=1.0,
     )
-    page
+    page  # noqa: B018
     return (page,)
 
 

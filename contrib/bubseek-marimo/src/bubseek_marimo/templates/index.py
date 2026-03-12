@@ -1,4 +1,5 @@
 """Bubseek Insights index — open dashboard or browse notebooks."""
+
 # marimo.App (for directory scanner)
 import marimo as mo
 
@@ -40,7 +41,7 @@ def _(insights_dir, mo):
             "- [Open starter visualization example](/?file=example_visualization.py)\n\n"
             "No insight notebooks yet. Ask Bub in the dashboard to generate one."
         )
-    page
+    page  # noqa: B018
     return (page,)
 
 
