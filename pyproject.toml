@@ -54,6 +54,9 @@ dev = [
     "bubseek-dingtalk",
     "bubseek-marimo",
 
+    "pandas",
+    "python-dotenv",
+
     "ruff>=0.14.14",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.1",

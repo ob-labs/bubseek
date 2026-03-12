@@ -10,9 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import typer
-from dotenv import dotenv_values
 
-from bubseek.config import BubSeekSettings
+from bubseek.config import BubSeekSettings, env_with_workspace_dotenv
 
 CREATE_DB_HINT = """
 Please create the database manually, for example:
@@ -84,7 +83,10 @@ class BubSeekBootstrap:
     @classmethod
     def from_workspace(cls, workspace: Path | None = None) -> BubSeekBootstrap:
         resolved_workspace = (workspace or Path.cwd()).resolve()
-        return cls(workspace=resolved_workspace, settings=BubSeekSettings())
+        return cls(
+            workspace=resolved_workspace,
+            settings=BubSeekSettings.from_workspace(resolved_workspace),
+        )
 
     def ensure_database(self) -> None:
         """Pre-flight database creation for MySQL-compatible backends only."""
@@ -118,14 +120,10 @@ class BubSeekBootstrap:
         raise typer.Exit(1)
 
     def forwarded_environment(self, args: list[str]) -> dict[str, str]:
-        """Merge `.env` values and normalized defaults into the Bub subprocess environment."""
-        env = dict(os.environ)
-        env.update({
-            key: value
-            for key, value in dotenv_values(self.workspace / ".env").items()
-            if isinstance(key, str) and isinstance(value, str)
-        })
-        env.setdefault("BUB_TAPESTORE_SQLALCHEMY_URL", self.settings.db.resolved_tapestore_url)
+        """Merge workspace .env and defaults into the Bub subprocess environment."""
+        env = env_with_workspace_dotenv(self.workspace)
+        settings = BubSeekSettings.from_workspace(self.workspace)
+        env.setdefault("BUB_TAPESTORE_SQLALCHEMY_URL", settings.db.resolved_tapestore_url)
         env.setdefault("BUB_WORKSPACE_PATH", str(_resolve_workspace(args, self.workspace)))
         return env
 

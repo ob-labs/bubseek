@@ -1,10 +1,12 @@
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["marimo", "pandas", "pyobvector", "sqlalchemy", "pymysql"]
+# dependencies = ["marimo", "pandas", "pyobvector", "sqlalchemy", "pymysql", "python-dotenv"]
 # ///
 """Tape Monitor — Bub tapestore (SeekDB/SQLite) dashboard with KPIs and charts.
 
-Reads tapestore URL from bubseek settings (BUB_TAPESTORE_SQLALCHEMY_URL / .env).
+Tapestore URL: single source bubseek.config.resolve_tapestore_url. When opened via channel,
+URL is written to insights/.tapestore-url so kernel reads it; otherwise notebook calls resolve_tapestore_url.
+Open via channel: http://localhost:2718/?file=tape_monitor.py
 """
 
 import marimo as mo
@@ -12,30 +14,82 @@ import marimo as mo
 app = mo.App(width="full")
 
 
+def _read_tapestore_url_file() -> str | None:
+    """If channel wrote insights/.tapestore-url, return its content. Never raises.
+    Channel writes to workspace/insights/.tapestore-url; kernel cwd may be workspace root, so we must
+    check both start and start/insights (not only start and parents).
+    """
+    import contextlib
+
+    with contextlib.suppress(Exception):
+        from pathlib import Path
+
+        starts = [Path.cwd().resolve()]
+        with contextlib.suppress(Exception):
+            import marimo as _mo
+
+            nd = getattr(_mo, "notebook_dir", None)
+            if callable(nd):
+                nb_dir = nd()
+                if nb_dir is not None:
+                    starts.insert(0, Path(nb_dir).resolve())
+        with contextlib.suppress(NameError):
+            if __file__ and str(__file__).strip():
+                starts.insert(0, Path(__file__).resolve().parent)
+        for start in starts:
+            # Check start, then start/insights (channel writes there when cwd=workspace), then parents
+            candidates = [start]
+            if (start / "insights").is_dir():
+                candidates.append(start / "insights")
+            for d in [*candidates, *start.parents]:
+                f = d / ".tapestore-url"
+                if f.is_file():
+                    url = f.read_text(encoding="utf-8").strip()
+                    if url:
+                        return url
+    return None
+
+
 @app.cell
 def _():
     import contextlib
     import json
+    import os
     from datetime import UTC, datetime
+    from pathlib import Path
 
     import marimo as mo
     import pandas as pd
     from sqlalchemy import create_engine, inspect, text
 
+    _default_sqlite = f"sqlite+pysqlite:///{os.path.expanduser('~/.bub/tapes.db')}"
+    tapestore_url = None
     try:
-        from bubseek.config import BubSeekSettings
+        tapestore_url = _read_tapestore_url_file()
+        if not tapestore_url:
+            try:
+                from bubseek.config import resolve_tapestore_url
 
-        tapestore_url = BubSeekSettings().db.resolved_tapestore_url
-        if "oceanbase" in tapestore_url:
-            import bubseek.oceanbase  # register mysql+oceanbase dialect
+                discover = None
+                with contextlib.suppress(Exception):
+                    nd = getattr(mo, "notebook_dir", None)
+                    if callable(nd) and nd() is not None:
+                        discover = Path(nd()).resolve()
+                if discover is None:
+                    with contextlib.suppress(NameError):
+                        if __file__ and str(__file__).strip():
+                            discover = Path(__file__).resolve().parent
+                tapestore_url = resolve_tapestore_url(workspace=None, discover_from=discover)
+            except Exception:
+                tapestore_url = (os.environ.get("BUB_TAPESTORE_SQLALCHEMY_URL") or "").strip() or _default_sqlite
+        if not tapestore_url:
+            tapestore_url = _default_sqlite
     except Exception:
-        import os
-
-        tapestore_url = os.environ.get(
-            "BUB_TAPESTORE_SQLALCHEMY_URL",
-            f"sqlite+pysqlite:///{os.path.expanduser('~/.bub/tapes.db')}",
-        )
-        if "oceanbase" in str(tapestore_url):
+        tapestore_url = _default_sqlite
+    if "oceanbase" in tapestore_url or "mysql" in tapestore_url:
+        try:
+            import bubseek.oceanbase  # register mysql+oceanbase dialect
+        except Exception:
             with contextlib.suppress(ImportError):
                 import bubseek.oceanbase  # noqa: F401
 

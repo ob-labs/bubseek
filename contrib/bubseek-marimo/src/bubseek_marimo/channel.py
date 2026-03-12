@@ -11,6 +11,16 @@ import subprocess
 import uuid
 from pathlib import Path
 
+try:
+    from bubseek.config import discover_project_root, env_with_workspace_dotenv, resolve_tapestore_url
+except ImportError:
+    discover_project_root = None  # type: ignore[assignment]
+    env_with_workspace_dotenv = None  # type: ignore[assignment]
+    resolve_tapestore_url = None  # type: ignore[assignment]  # bubseek not installed
+
+if env_with_workspace_dotenv is None:
+    from dotenv import dotenv_values
+
 from bub.channels import Channel
 from bub.channels.message import ChannelMessage
 from bub.types import MessageHandler
@@ -18,6 +28,22 @@ from loguru import logger
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from bubseek_marimo.notebooks import ensure_seed_notebooks
+
+
+def _discover_project_root_fallback(start: Path) -> Path | None:
+    """Walk up from start for a directory containing .env (used when bubseek not installed)."""
+    for d in [start, *start.parents]:
+        if (d / ".env").is_file():
+            return d
+    return None
+
+
+def _write_tapestore_url_into(insights_dir: Path, url: str) -> None:
+    """Write tapestore URL to insights/.tapestore-url so notebooks can read it (no HTTP from kernel → avoids deadlock)."""
+    path = insights_dir / ".tapestore-url"
+    with contextlib.suppress(OSError):
+        path.write_text(url.strip(), encoding="utf-8")
+
 
 try:
     from aiohttp import ClientSession, web
@@ -70,15 +96,59 @@ class MarimoChannel(Channel):
         if workspace:
             return Path(workspace).resolve()
 
+        # Channel may run inside .venv with cwd not project root: discover project root by .env
+        discover = discover_project_root or _discover_project_root_fallback
+        for start in (Path.cwd(), Path(__file__).resolve().parent):
+            root = discover(start)
+            if root is not None:
+                return root
         return Path.cwd().resolve()
 
     def _insights_dir(self) -> Path:
         return self._workspace_dir() / "insights"
 
+    def _tapestore_url(self) -> str:
+        """Tapestore URL from single source: bubseek.config.resolve_tapestore_url(workspace)."""
+        if resolve_tapestore_url is not None:
+            return resolve_tapestore_url(self._workspace_dir())
+        # Fallback when bubseek not installed
+        env = env_with_workspace_dotenv(self._workspace_dir()) if env_with_workspace_dotenv else self._marimo_env()
+        url = (env.get("BUB_TAPESTORE_SQLALCHEMY_URL") or "").strip()
+        if url:
+            return url
+        return f"sqlite+pysqlite:///{Path.home().expanduser() / '.bub' / 'tapes.db'}"
+
     def _ensure_seed_notebooks(self) -> None:
         insights_dir = self._insights_dir()
+        workspace = self._workspace_dir()
+        env_path = workspace / ".env"
+        url = self._tapestore_url()
+        logger.info(
+            "Marimo workspace={} .env={} exists={} tapestore=>{}",
+            workspace,
+            env_path,
+            env_path.is_file(),
+            "seekdb" if url and ("mysql" in url or "oceanbase" in url) else "sqlite",
+        )
         ensure_seed_notebooks(insights_dir)
+        _write_tapestore_url_into(insights_dir, url)
         logger.info("Ensured starter notebooks under {}", insights_dir)
+
+    def _marimo_env(self) -> dict[str, str]:
+        """Build environment for marimo subprocess: inherit current env and overlay workspace .env (same as pydantic-settings / bubseek)."""
+        workspace = self._workspace_dir()
+        if env_with_workspace_dotenv is not None:
+            env = env_with_workspace_dotenv(workspace)
+        else:
+            env = dict(os.environ)
+            env_file = workspace / ".env"
+            if env_file.is_file():
+                for key, value in dotenv_values(env_file).items():
+                    if isinstance(key, str) and isinstance(value, str):
+                        env[key] = value
+        env["BUB_WORKSPACE_PATH"] = str(workspace)
+        env["BUB_MARIMO_PORT"] = str(self._config.port)
+        return env
 
     def _start_marimo(self) -> None:
         """Start `marimo run` against the active insights directory."""
@@ -106,6 +176,7 @@ class MarimoChannel(Channel):
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 cwd=str(insights_dir.parent),
+                env=self._marimo_env(),
             )
             logger.info("Marimo at http://127.0.0.1:{}/", self._config.marimo_port)
         except Exception as exc:
@@ -123,6 +194,8 @@ class MarimoChannel(Channel):
 
         self._app = web.Application()
         self._app.router.add_post("/api/chat", self._handle_chat_request)
+        self._app.router.add_get("/api/tapestore-url", self._handle_tapestore_url)
+        self._app.router.add_get("/api/tapestore-debug", self._handle_tapestore_debug)
         self._app.router.add_get("/bub-ws", self._handle_websocket)
         for method in ("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"):
             self._app.router.add_route(method, "/{path:.*}", self._handle_marimo_proxy)
@@ -161,6 +234,24 @@ class MarimoChannel(Channel):
         self._app = None
         logger.info("Marimo channel stopped")
 
+    async def _handle_tapestore_url(self, request: web.Request) -> web.Response:
+        """Return tapestore URL from workspace config (single source of truth for notebooks)."""
+        return web.json_response({"url": self._tapestore_url()})
+
+    async def _handle_tapestore_debug(self, request: web.Request) -> web.Response:
+        """Diagnostic: workspace, .env path, tapestore URL (curl http://localhost:2718/api/tapestore-debug)."""
+        workspace = self._workspace_dir()
+        env_path = workspace / ".env"
+        url = self._tapestore_url()
+        store = "seekdb" if url and ("mysql" in url or "oceanbase" in url) else "sqlite"
+        return web.json_response({
+            "workspace": str(workspace),
+            "env_path": str(env_path),
+            "env_exists": env_path.is_file(),
+            "tapestore_url": url[:80] + "..." if len(url) > 80 else url,
+            "store": store,
+        })
+
     async def _handle_marimo_proxy(self, request: web.Request) -> web.StreamResponse:
         """Proxy all non-chat HTTP traffic to the Marimo app."""
         if not self._marimo_proc:
@@ -175,7 +266,11 @@ class MarimoChannel(Channel):
 
         body = await request.read() if request.has_body else None
         headers = dict(request.headers)
-        headers.pop("Host", None)
+        # Forward client Host so marimo generates WS/API URLs for proxy (2718), not backend (2719) — avoids "kernel not found"
+        if request.host:
+            headers["Host"] = request.host
+        headers.setdefault("X-Forwarded-Host", request.host or "")
+        headers.setdefault("X-Forwarded-Proto", "http")
 
         async with ClientSession() as session, session.request(request.method, url, data=body, headers=headers) as resp:
             response_body = await resp.read()
@@ -249,7 +344,9 @@ class MarimoChannel(Channel):
         local_ws = web.WebSocketResponse()
         await local_ws.prepare(request)
 
-        async with ClientSession() as session, session.ws_connect(ws_url) as remote_ws:
+        # Forward Host so backend matches the same origin as the page (avoids kernel/WS mismatch)
+        ws_headers = {"Host": request.host} if request.host else {}
+        async with ClientSession() as session, session.ws_connect(ws_url, headers=ws_headers) as remote_ws:
             await asyncio.gather(
                 asyncio.create_task(self._relay_remote_messages(remote_ws, local_ws)),
                 asyncio.create_task(self._relay_client_messages(local_ws, remote_ws)),

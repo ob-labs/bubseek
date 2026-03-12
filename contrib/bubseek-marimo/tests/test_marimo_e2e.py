@@ -110,6 +110,9 @@ def test_workspace_resolution_falls_back_to_cwd(monkeypatch, tmp_path) -> None:
     monkeypatch.delenv("BUB_MARIMO_WORKSPACE", raising=False)
     monkeypatch.delenv("BUB_WORKSPACE_PATH", raising=False)
     monkeypatch.chdir(tmp_path)
+    # When no env and cwd has no .env, discover finds repo from channel __file__; force fallback to cwd
+    monkeypatch.setattr("bubseek_marimo.channel.discover_project_root", lambda start: None)
+    monkeypatch.setattr("bubseek_marimo.channel._discover_project_root_fallback", lambda start: None)
 
     channel = MarimoChannel(_noop_handler)
 
@@ -118,10 +121,11 @@ def test_workspace_resolution_falls_back_to_cwd(monkeypatch, tmp_path) -> None:
 
 
 def test_example_template_contains_scanner_markers() -> None:
-    from bubseek_marimo.notebooks import EXAMPLE_NOTEBOOK
+    from bubseek_marimo.notebooks import get_seed_notebook_content
 
-    assert "import marimo" in EXAMPLE_NOTEBOOK
-    assert "marimo.App" in EXAMPLE_NOTEBOOK
+    content = get_seed_notebook_content("example_visualization.py")
+    assert "import marimo" in content
+    assert "marimo.App" in content
 
 
 @pytest.fixture(scope="module")

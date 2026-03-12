@@ -79,6 +79,9 @@ docs/_build/
 .pybuilder/
 target/
 
+# Marimo channel runtime (insights/.tapestore-url)
+.tapestore-url
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
