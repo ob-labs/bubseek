@@ -12,6 +12,8 @@ app = mo.App(width="medium")
 
 @app.cell
 def _():
+    import marimo as mo
+
     iris_rows = [
         {"species": "Setosa", "sepal_length": 5.1, "sepal_width": 3.5, "petal_length": 1.4, "petal_width": 0.2},
         {"species": "Setosa", "sepal_length": 4.9, "sepal_width": 3.0, "petal_length": 1.4, "petal_width": 0.2},
@@ -20,12 +22,14 @@ def _():
         {"species": "Virginica", "sepal_length": 6.3, "sepal_width": 3.3, "petal_length": 6.0, "petal_width": 2.5},
         {"species": "Virginica", "sepal_length": 5.8, "sepal_width": 2.7, "petal_length": 5.1, "petal_width": 1.9},
     ]
-    return (iris_rows,)
+    return (iris_rows, mo)
 
 
 @app.cell
 def _(mo):
-    return (mo.md("# Iris Snapshot"),)
+    title = mo.md("# Iris Snapshot")
+    title
+    return (title,)
 
 
 @app.cell
@@ -45,7 +49,7 @@ def _(iris_rows):
 
     row_count = len(iris_rows)
     feature_averages = {feature: total / row_count for feature, total in feature_totals.items()}
-    return feature_averages, species_counts
+    return (feature_averages, species_counts)
 
 
 @app.cell
@@ -60,12 +64,15 @@ def _(feature_averages, mo, species_counts):
             f"- Mean petal length: **{feature_averages['petal_length']:.2f} cm**",
         ])
     )
+    summary
     return (summary,)
 
 
 @app.cell
 def _(iris_rows, mo):
-    return (mo.ui.table(iris_rows, label="Iris rows", selection=None),)
+    table = mo.ui.table(iris_rows, label="Iris rows", selection=None)
+    table
+    return (table,)
 
 
 if __name__ == "__main__":

@@ -37,26 +37,28 @@ Follow [marimo-notebook](https://github.com/marimo-team/skills/tree/main/skills/
 # ///
 
 import marimo as mo
-app = marimo.App(width="medium")
+app = mo.App(width="medium")
 
 @app.cell
 def _():
+    import marimo as mo
     import pandas as pd
     import matplotlib.pyplot as plt
-    return pd, plt
+    return (pd, plt, mo)
 
 @app.cell
 def _(mo):
-    mo.md("# Insight: Sales Trend")
-    return
+    title = mo.md("# Insight: Sales Trend")
+    title   # last expression = displayed output
+    return (title,)
 
 @app.cell
-def _(pd, plt):
+def _(mo, pd, plt):
     df = pd.DataFrame(...)  # your data
     fig, ax = plt.subplots()
     ax.plot(df["x"], df["y"])
-    fig  # final expression renders
-    return
+    fig   # last expression renders
+    return (fig,)
 
 if __name__ == "__main__":
     app.run()
@@ -65,7 +67,8 @@ if __name__ == "__main__":
 ### Key Conventions
 
 - **Cell structure**: `@app.cell` decorator; function inputs/outputs = cell dependencies
-- **Final expression**: Only the last expression of a cell renders; no indented display
+- **First cell must pass `mo`**: In the first cell, `import marimo as mo` and include `mo` in the return (e.g. `return (data, mo)`). Later cells that use `mo.md()`, `mo.ui.*` etc. must receive `mo` from a previous cell's return — module-level `mo` is not available inside cells.
+- **Display**: The last expression in a cell is what gets rendered. For UI cells, assign to a variable, put that variable as the last expression, then `return (variable,)` so other cells can depend on it.
 - **Reactivity**: Variables between cells define reactivity; avoid mutating across cells
 - **PEP 723**: Add `# /// script` block with dependencies at top
 - **Scanner compatibility**: notebooks opened from a marimo directory must contain the literal markers `import marimo` and `marimo.App`

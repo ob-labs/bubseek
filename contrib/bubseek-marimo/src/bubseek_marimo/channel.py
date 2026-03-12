@@ -97,6 +97,7 @@ class MarimoChannel(Channel):
                     marimo_executable,
                     "run",
                     str(insights_dir),
+                    "--watch",
                     "--port",
                     str(self._config.marimo_port),
                     "--host",

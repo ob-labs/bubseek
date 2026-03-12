@@ -66,17 +66,18 @@ def _(mo):
 
 @app.cell
 def _(get_history, mo):
-    history = get_history()
-    if not history:
-        return (mo.md("*No messages yet.*"),)
-
-    items = []
-    for message in history:
-        role = message.get("role", "assistant")
-        title = "You" if role == "user" else "Bub"
-        body = mo.md(message.get("content", ""))
-        items.append(mo.vstack([mo.md(f"**{title}**"), body], gap=0.25))
-    return (mo.vstack(items, gap=0.75),)
+    _history = get_history()
+    if not _history:
+        chat_history = mo.md("*No messages yet.*")
+    else:
+        _items = []
+        for _msg in _history:
+            _role = _msg.get("role", "assistant")
+            _label = "You" if _role == "user" else "Bub"
+            _body = mo.md(_msg.get("content", ""))
+            _items.append(mo.vstack([mo.md(f"**{_label}**"), _body], gap=0.25))
+        chat_history = mo.vstack(_items, gap=0.75)
+    return (chat_history,)
 
 
 @app.cell
@@ -104,16 +105,15 @@ def _(get_pending_submission, mo, set_pending_submission):
 
 @app.cell
 def _(chat_form, chat_history, mo):
-    return (
-        mo.vstack(
-            [
-                mo.md("## Chat"),
-                chat_history,
-                chat_form,
-            ],
-            gap=0.75,
-        ),
+    chat_panel = mo.vstack(
+        [
+            mo.md("## Chat"),
+            chat_history,
+            chat_form,
+        ],
+        gap=0.75,
     )
+    return (chat_panel,)
 
 
 @app.cell
@@ -134,45 +134,42 @@ def _(
     submission = get_pending_submission()
     content = (submission["content"] or "").strip()
     nonce = submission["nonce"]
-    if not content or nonce == get_last_processed_nonce():
-        return
+    if content and nonce != get_last_processed_nonce():
+        set_last_processed_nonce(nonce)
+        _history = list(get_history())
+        _history.append({"role": "user", "content": content})
+        set_history(_history)
 
-    set_last_processed_nonce(nonce)
-    history = list(get_history())
-    history.append({"role": "user", "content": content})
-    set_history(history)
+        payload = {"content": content}
+        session_id = get_session_id()
+        if session_id:
+            payload["session_id"] = session_id
 
-    payload = {"content": content}
-    session_id = get_session_id()
-    if session_id:
-        payload["session_id"] = session_id
+        request = urlrequest.Request(
+            f"{api_base}/api/chat",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
 
-    request = urlrequest.Request(
-        f"{api_base}/api/chat",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-    )
+        assistant_messages = []
+        try:
+            with urlrequest.urlopen(request, timeout=chat_request_timeout_seconds) as response:
+                result = json.loads(response.read().decode("utf-8"))
+        except urlerror.HTTPError as exc:
+            _body = exc.read().decode("utf-8", errors="replace")
+            assistant_messages.append({"role": "assistant", "content": f"HTTP {exc.code}: {_body}"})
+        except Exception as exc:
+            assistant_messages.append({"role": "assistant", "content": f"Request failed: {exc}"})
+        else:
+            if result.get("session_id"):
+                set_session_id(result["session_id"])
+            for _message in result.get("messages", []):
+                text = (_message.get("content") or "").strip()
+                if text:
+                    assistant_messages.append({"role": "assistant", "content": text})
 
-    assistant_messages = []
-    try:
-        with urlrequest.urlopen(request, timeout=chat_request_timeout_seconds) as response:
-            result = json.loads(response.read().decode("utf-8"))
-    except urlerror.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        assistant_messages.append({"role": "assistant", "content": f"HTTP {exc.code}: {body}"})
-    except Exception as exc:
-        assistant_messages.append({"role": "assistant", "content": f"Request failed: {exc}"})
-    else:
-        if result.get("session_id"):
-            set_session_id(result["session_id"])
-        for message in result.get("messages", []):
-            text = (message.get("content") or "").strip()
-            if text:
-                assistant_messages.append({"role": "assistant", "content": text})
-
-    if assistant_messages:
-        set_history(history + assistant_messages)
-    return
+        if assistant_messages:
+            set_history(_history + assistant_messages)
 
 
 @app.cell
@@ -191,29 +188,28 @@ def _(insights_dir, mo):
         lines.extend(f"- [{path.stem}](/?file={path.name})" for path in notebooks)
         notebooks_view = mo.md("\\n".join(lines))
 
-    return (
-        mo.vstack(
-            [
-                mo.md("## Insights Index"),
-                refresh_button,
-                notebooks_view,
-            ],
-            gap=0.75,
-        ),
+    index_panel = mo.vstack(
+        [
+            mo.md("## Insights Index"),
+            refresh_button,
+            notebooks_view,
+        ],
+        gap=0.75,
     )
+    return (index_panel,)
 
 
 @app.cell
 def _(chat_panel, index_panel, mo, title):
-    return (
-        mo.vstack(
-            [
-                title,
-                mo.hstack([chat_panel, index_panel], widths=[0.62, 0.38], align="start", gap=1.0),
-            ],
-            gap=1.0,
-        ),
+    page = mo.vstack(
+        [
+            title,
+            mo.hstack([chat_panel, index_panel], widths=[0.62, 0.38], align="start", gap=1.0),
+        ],
+        gap=1.0,
     )
+    page
+    return (page,)
 
 
 if __name__ == "__main__":
@@ -231,7 +227,10 @@ app = mo.App()
 def _():
     from pathlib import Path
 
-    return (Path(__file__).resolve().parent,)
+    import marimo as mo
+
+    insights_dir = Path(__file__).resolve().parent
+    return (insights_dir, mo)
 
 
 @app.cell
@@ -251,16 +250,16 @@ def _(insights_dir, mo):
             "## Notebooks",
         ]
         lines.extend(f"- [{path.stem}](/?file={path.name})" for path in notebooks)
-        return (mo.md("\\n".join(lines)),)
-
-    return (
-        mo.md(
+        page = mo.md("\\n".join(lines))
+    else:
+        page = mo.md(
             "# Bubseek Insights\\n\\n"
             "- [Open dashboard](/?file=dashboard.py)\\n\\n"
             "- [Open starter visualization example](/?file=example_visualization.py)\\n\\n"
             "No insight notebooks yet. Ask Bub in the dashboard to generate one."
-        ),
-    )
+        )
+    page
+    return (page,)
 
 
 if __name__ == "__main__":
@@ -282,6 +281,8 @@ app = mo.App(width="medium")
 
 @app.cell
 def _():
+    import marimo as mo
+
     data = [
         {"month": "Jan", "sales": 120, "cost": 75},
         {"month": "Feb", "sales": 145, "cost": 83},
@@ -290,32 +291,33 @@ def _():
         {"month": "May", "sales": 210, "cost": 108},
         {"month": "Jun", "sales": 235, "cost": 120},
     ]
-    return (data,)
+    return (data, mo)
 
 
 @app.cell
-def _(mo):
+def _(data, mo):
     metric = mo.ui.dropdown(
         options={"Sales": "sales", "Cost": "cost"},
         value="Sales",
         label="Metric",
     )
     scale = mo.ui.slider(0.6, 1.6, value=1.0, step=0.1, label="Scale")
-    return metric, scale, mo.hstack([metric, scale], widths=[0.5, 0.5], align="end")
+    controls = mo.hstack([metric, scale], widths=[0.5, 0.5], align="end")
+    return (metric, scale, controls, mo)
 
 
 @app.cell
 def _(controls, mo):
-    return (
-        mo.vstack(
-            [
-                mo.md("# Example Visualization"),
-                mo.md("A native marimo example using widgets, reactivity, markdown, and SVG rendering."),
-                controls,
-            ],
-            gap=0.75,
-        ),
+    header = mo.vstack(
+        [
+            mo.md("# Example Visualization"),
+            mo.md("A native marimo example using widgets, reactivity, markdown, and SVG rendering."),
+            controls,
+        ],
+        gap=0.75,
     )
+    header
+    return (header,)
 
 
 @app.cell
@@ -352,7 +354,9 @@ def _(data, metric, mo, scale):
         f"- Peak value: **{max_value}**"
     )
     chart = mo.Html(svg)
-    return (mo.vstack([summary, chart], gap=0.75),)
+    content = mo.vstack([summary, chart], gap=0.75)
+    content
+    return (content,)
 
 
 if __name__ == "__main__":
