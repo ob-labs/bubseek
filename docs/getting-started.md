@@ -44,7 +44,7 @@ If you do not configure a tape store URL, bubseek follows Bub's SQLite default u
 
 ## Add contrib
 
-Contrib packages are standard Python packages. Add them with normal dependency management. bubseek ships `bub-web-search`, `bub-tapestore-sqlalchemy`, and `bubseek-schedule` by default.
+Contrib packages are standard Python packages. Add them with normal dependency management. bubseek ships `bub-web-search`, `bub-tapestore-sqlalchemy`, and `bubseek-schedule` by default, and resolves channel extras from GitHub-hosted `bub-contrib` packages.
 
 **Optional extras:**
 

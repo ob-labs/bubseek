@@ -1,1 +1,0 @@
-"""DingTalk builtin skill package."""

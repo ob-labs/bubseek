@@ -73,6 +73,13 @@ def _resolve_workspace(args: list[str], default_workspace: Path) -> Path:
     return default_workspace.resolve()
 
 
+def _should_ensure_database(args: list[str]) -> bool:
+    """Skip DB preflight for pure help/version flows."""
+    if not args:
+        return False
+    return not any(arg in {"--help", "-h", "help", "--version"} for arg in args)
+
+
 @dataclass(slots=True)
 class BubSeekBootstrap:
     """Bootstrap runtime state for a single bubseek invocation."""
@@ -129,7 +136,8 @@ class BubSeekBootstrap:
 
     def run(self, args: list[str]) -> None:
         """Replace the current process with Bub after preparing runtime defaults."""
-        self.ensure_database()
+        if _should_ensure_database(args):
+            self.ensure_database()
 
         executable = shutil.which("bub")
         if executable is None:
@@ -145,5 +153,7 @@ class BubSeekBootstrap:
 
 def main(argv: list[str] | None = None) -> int:
     """Entry point for the `bubseek` console script."""
-    BubSeekBootstrap.from_workspace().run(list(sys.argv[1:] if argv is None else argv))
+    args = list(sys.argv[1:] if argv is None else argv)
+    workspace = _resolve_workspace(args, Path.cwd())
+    BubSeekBootstrap.from_workspace(workspace).run(args)
     return 0

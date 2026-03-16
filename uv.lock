@@ -13,7 +13,6 @@ resolution-markers = [
 [manifest]
 members = [
     "bubseek",
-    "bubseek-dingtalk",
     "bubseek-marimo",
     "bubseek-schedule",
 ]
@@ -268,7 +267,7 @@ wheels = [
 [[package]]
 name = "bub"
 version = "0.3.0a1"
-source = { git = "https://github.com/bubbuild/bub.git#18e4482fcad3c9d1ad0c690fa1746520d15269b0" }
+source = { git = "https://github.com/bubbuild/bub.git#417ccb321cb0a36c489debfb54f0225ca8a529cf" }
 dependencies = [
     { name = "aiohttp" },
     { name = "any-llm-sdk", extra = ["anthropic"] },
@@ -286,9 +285,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "bub-dingtalk"
+version = "0.1.0"
+source = { git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-dingtalk#bc66a7d54c6a7ddc2a70190f4f8da1f6f63657dd" }
+dependencies = [
+    { name = "bub" },
+    { name = "dingtalk-stream" },
+]
+
+[[package]]
 name = "bub-feishu"
 version = "0.1.0"
-source = { git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-feishu#7db42b50caa45d41139378e7a0ecc7657c563407" }
+source = { git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-feishu#bc66a7d54c6a7ddc2a70190f4f8da1f6f63657dd" }
 dependencies = [
     { name = "bub" },
     { name = "lark-oapi" },
@@ -298,7 +306,7 @@ dependencies = [
 [[package]]
 name = "bub-tapestore-sqlalchemy"
 version = "0.1.0"
-source = { git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-tapestore-sqlalchemy#7db42b50caa45d41139378e7a0ecc7657c563407" }
+source = { git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-tapestore-sqlalchemy#bc66a7d54c6a7ddc2a70190f4f8da1f6f63657dd" }
 dependencies = [
     { name = "bub" },
     { name = "sqlalchemy" },
@@ -307,7 +315,7 @@ dependencies = [
 [[package]]
 name = "bub-web-search"
 version = "0.1.0"
-source = { git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-web-search#7db42b50caa45d41139378e7a0ecc7657c563407" }
+source = { git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-web-search#bc66a7d54c6a7ddc2a70190f4f8da1f6f63657dd" }
 dependencies = [
     { name = "bub" },
 ]
@@ -330,7 +338,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dingtalk = [
-    { name = "bubseek-dingtalk" },
+    { name = "bub-dingtalk" },
 ]
 feishu = [
     { name = "bub-feishu" },
@@ -341,7 +349,7 @@ marimo = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "bubseek-dingtalk" },
+    { name = "bub-dingtalk" },
     { name = "bubseek-marimo" },
     { name = "mkdocs" },
     { name = "mkdocs-material" },
@@ -358,10 +366,10 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bub", git = "https://github.com/bubbuild/bub.git" },
+    { name = "bub-dingtalk", marker = "extra == 'dingtalk'", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-dingtalk" },
     { name = "bub-feishu", marker = "extra == 'feishu'", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-feishu" },
     { name = "bub-tapestore-sqlalchemy", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-tapestore-sqlalchemy" },
     { name = "bub-web-search", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-web-search" },
-    { name = "bubseek-dingtalk", marker = "extra == 'dingtalk'", editable = "contrib/bubseek-dingtalk" },
     { name = "bubseek-marimo", marker = "extra == 'marimo'", editable = "contrib/bubseek-marimo" },
     { name = "bubseek-schedule", editable = "contrib/bubseek-schedule" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
@@ -374,7 +382,7 @@ provides-extras = ["feishu", "dingtalk", "marimo"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "bubseek-dingtalk", editable = "contrib/bubseek-dingtalk" },
+    { name = "bub-dingtalk", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-dingtalk" },
     { name = "bubseek-marimo", editable = "contrib/bubseek-marimo" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-material", specifier = ">=9.7.1" },
@@ -386,25 +394,6 @@ dev = [
     { name = "ruff", specifier = ">=0.14.14" },
     { name = "tox-uv", specifier = ">=1.29.0" },
     { name = "ty", specifier = ">=0.0.14" },
-]
-
-[[package]]
-name = "bubseek-dingtalk"
-version = "0.1.0"
-source = { editable = "contrib/bubseek-dingtalk" }
-dependencies = [
-    { name = "bub" },
-    { name = "dingtalk-stream" },
-    { name = "pydantic-settings" },
-    { name = "requests" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "bub", git = "https://github.com/bubbuild/bub.git" },
-    { name = "dingtalk-stream", specifier = ">=0.24.0" },
-    { name = "pydantic-settings", specifier = ">=2.0.0" },
-    { name = "requests", specifier = ">=2.31.0" },
 ]
 
 [[package]]

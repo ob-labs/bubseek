@@ -29,7 +29,7 @@ dependencies = [
 
 [project.optional-dependencies]
 feishu = ["bub-feishu"]
-dingtalk = ["bubseek-dingtalk"]
+dingtalk = ["bub-dingtalk"]
 marimo = ["bubseek-marimo"]
 
 [project.urls]
@@ -51,7 +51,7 @@ dev = [
 
     "ty>=0.0.14",
 
-    "bubseek-dingtalk",
+    "bub-dingtalk",
     "bubseek-marimo",
 
     "pandas",
@@ -86,17 +86,16 @@ index-url = "https://pypi.org/simple"
 
 [tool.uv.sources]
 bub = { git = "https://github.com/bubbuild/bub.git" }
+bub-dingtalk = { git = "https://github.com/bubbuild/bub-contrib.git", subdirectory = "packages/bub-dingtalk" }
 bub-feishu = { git = "https://github.com/bubbuild/bub-contrib.git", subdirectory = "packages/bub-feishu" }
 bub-web-search = { git = "https://github.com/bubbuild/bub-contrib.git", subdirectory = "packages/bub-web-search" }
 bub-tapestore-sqlalchemy = { git = "https://github.com/bubbuild/bub-contrib.git", subdirectory = "packages/bub-tapestore-sqlalchemy" }
 bubseek-schedule = { workspace = true }
-bubseek-dingtalk = { workspace = true }
 bubseek-marimo = { workspace = true }
 
 [tool.uv.workspace]
 members = [
     "contrib/bubseek-schedule",
-    "contrib/bubseek-dingtalk",
     "contrib/bubseek-marimo",
 ]
 
@@ -110,7 +109,7 @@ python-version = "3.12"
 exclude = ["references", "insights"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "contrib/bubseek-schedule/src/tests", "contrib/bubseek-dingtalk/tests", "contrib/bubseek-marimo/tests"]
+testpaths = ["tests", "contrib/bubseek-schedule/src/tests", "contrib/bubseek-marimo/tests"]
 
 [tool.ruff]
 target-version = "py312"

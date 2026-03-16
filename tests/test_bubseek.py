@@ -37,14 +37,17 @@ def test_pyproject_pins_bub_and_bundled_plugins() -> None:
     assert "feishu" in optional
     assert "bub-feishu" in optional["feishu"]
     assert "dingtalk" in optional
-    assert "bubseek-dingtalk" in optional["dingtalk"]
+    assert "bub-dingtalk" in optional["dingtalk"]
     assert any("bub-tapestore-sqlalchemy" in d for d in deps)
 
     sources = data.get("tool", {}).get("uv", {}).get("sources", {})
+    assert "bub" in sources
+    assert sources["bub"].get("git") == "https://github.com/bubbuild/bub.git"
+    assert "bub-dingtalk" in sources
+    assert sources["bub-dingtalk"].get("git") == "https://github.com/bubbuild/bub-contrib.git"
+    assert sources["bub-dingtalk"].get("subdirectory") == "packages/bub-dingtalk"
     assert "bub-feishu" in sources
     assert sources["bub-feishu"].get("git") == "https://github.com/bubbuild/bub-contrib.git"
-    assert "bubseek-dingtalk" in sources
-    assert sources["bubseek-dingtalk"].get("workspace") is True
     requires = data["build-system"]["requires"]
     assert "pdm-backend" in requires
     assert any("pdm-build-bub" in r for r in requires)

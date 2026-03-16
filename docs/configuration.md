@@ -35,7 +35,7 @@ If you do not want them installed by default, put them under `optional-dependenc
 ```toml
 [project.optional-dependencies]
 feishu = ["bub-feishu"]
-dingtalk = ["bubseek-dingtalk"]
+dingtalk = ["bub-dingtalk"]
 marimo = ["bubseek-marimo"]
 ```
 

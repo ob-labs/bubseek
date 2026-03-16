@@ -1,1 +1,0 @@
-"""DingTalk skill scripts."""

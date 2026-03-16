@@ -42,7 +42,7 @@ For local testing, you can keep the tape store unset and use the default SQLite 
 
 ## Add contrib
 
-Contrib packages remain standard Python packages. Add them as normal dependencies.
+Contrib packages remain standard Python packages. Add them as normal dependencies. The bundled channel extras resolve from GitHub-hosted `bub-contrib` packages instead of local workspace packages.
 
 ```toml
 [project]

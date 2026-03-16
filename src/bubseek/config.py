@@ -120,10 +120,12 @@ class BubSeekSettings(BaseSettings):
             path = Path(workspace).resolve() / ".env"
             if path.is_file():
                 env_file = path
+            else:
+                return cls(_env_file=None, db=DatabaseSettings(_env_file=None))  # type: ignore[call-arg]
         if env_file is None:
             env_file = _workspace_env_file()
         if env_file is None:
-            return cls()
+            return cls(_env_file=None, db=DatabaseSettings(_env_file=None))  # type: ignore[call-arg]
         # Nested BaseSettings does not inherit parent _env_file; pass explicitly (pydantic-settings native)
         return cls(_env_file=env_file, db=DatabaseSettings(_env_file=env_file))  # type: ignore[call-arg]
 
