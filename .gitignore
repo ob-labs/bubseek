@@ -214,7 +214,7 @@ marimo/_lsp/
 __marimo__/
 
 # Bub
-./references/
+/references/
 .agents/
 .bub/
 # Runtime-generated marimo notebooks
