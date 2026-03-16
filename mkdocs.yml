@@ -1,11 +1,8 @@
 site_name: bubseek
-repo_url: https://github.com/psiace/bubseek
-site_url: https://psiace.github.io/bubseek
+repo_url: https://github.com/ob-labs/bubseek
 site_description: Intelligent Perception and Explainable Analytics in Collaboration ｜ Bub & seekdb Inside
-site_author: Chojan Shang
 edit_uri: edit/main/docs/
-repo_name: psiace/bubseek
-copyright: Maintained by <a href="https://github.com/psiace">psiace</a>.
+repo_name: ob-labs/bubseek
 
 nav:
   - Home: index.md
@@ -45,7 +42,7 @@ theme:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/psiace/bubseek
+      link: https://github.com/ob-labs/bubseek
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/bubseek
 

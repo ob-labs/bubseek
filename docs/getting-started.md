@@ -13,7 +13,7 @@ This guide is for the normal user flow: install bubseek, run Bub through the wra
 From the repository root:
 
 ```bash
-git clone https://github.com/psiace/bubseek.git
+git clone https://github.com/ob-labs/bubseek.git
 cd bubseek
 uv sync
 ```

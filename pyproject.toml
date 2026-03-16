@@ -33,9 +33,7 @@ dingtalk = ["bub-dingtalk"]
 marimo = ["bubseek-marimo"]
 
 [project.urls]
-Homepage = "https://psiace.github.io/bubseek/"
-Repository = "https://github.com/psiace/bubseek"
-Documentation = "https://psiace.github.io/bubseek/"
+Repository = "https://github.com/ob-labs/bubseek"
 
 [project.scripts]
 bubseek = "bubseek.__main__:main"

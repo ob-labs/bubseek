@@ -54,4 +54,4 @@ make docs-test
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/psiace/bubseek/blob/main/CONTRIBUTING.md).
+See [CONTRIBUTING.md](https://github.com/ob-labs/bubseek/blob/main/CONTRIBUTING.md).

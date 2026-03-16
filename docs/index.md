@@ -21,6 +21,6 @@ The main user path is simple:
 
 ## Quick links
 
-- [Repository](https://github.com/psiace/bubseek)
+- [Repository](https://github.com/ob-labs/bubseek)
 - [PyPI](https://pypi.org/project/bubseek/)
 - [Bub](https://github.com/bubbuild/bub)

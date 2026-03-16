@@ -1,8 +1,8 @@
 # bubseek
 
 [![PyPI version](https://img.shields.io/pypi/v/bubseek.svg)](https://pypi.org/project/bubseek/)
-[![License](https://img.shields.io/github/license/psiace/bubseek.svg)](LICENSE)
-[![CI](https://github.com/psiace/bubseek/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/psiace/bubseek/actions/workflows/main.yml?query=branch%3Amain)
+[![License](https://img.shields.io/github/license/ob-labs/bubseek.svg)](LICENSE)
+[![CI](https://github.com/ob-labs/bubseek/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/ob-labs/bubseek/actions/workflows/main.yml?query=branch%3Amain)
 
 **Enterprise-oriented distribution of [Bub](https://github.com/bubbuild/bub)** for agent-driven insight workflows in cloud-edge environments.
 
@@ -23,7 +23,7 @@ bubseek turns fragmented data across operational systems, repositories, and agen
 Requires [uv](https://docs.astral.sh/uv/) (recommended) or pip, and Python 3.12+.
 
 ```bash
-git clone https://github.com/psiace/bubseek.git
+git clone https://github.com/ob-labs/bubseek.git
 cd bubseek
 uv sync
 uv run bubseek --help
@@ -61,10 +61,6 @@ uv sync
 - Optional extras: Feishu `uv sync --extra feishu`, DingTalk `uv sync --extra dingtalk`, Marimo `uv sync --extra marimo`.
 
 ## Documentation
-
-User documentation lives at:
-
-https://psiace.github.io/bubseek/
 
 ## Development
 
