@@ -9,7 +9,11 @@
 #     "apscheduler",
 # ]
 # ///
-"""Scheduled tasks — rows from `apscheduler_jobs` (tapestore DB). Marimo: `?file=schedule_kanban.py`."""
+"""Scheduled tasks — rows from `apscheduler_jobs` (tapestore DB). Marimo: `?file=schedule_kanban.py`.
+
+Marimo expects: PEP 723 block → docstring → `import marimo` → `app = mo.App(...)` with no other
+module-level code in between (otherwise the gateway may fail to attach a kernel).
+"""
 
 import marimo as mo
 
@@ -17,7 +21,7 @@ app = mo.App(width="full")
 
 
 @app.cell
-def _():
+def _():  # noqa: C901
     import contextlib
     import os
     import pickle
@@ -29,7 +33,7 @@ def _():
 
     _default_seekdb = "mysql+oceanbase://root:@127.0.0.1:2881/bub"
 
-    def _resolve_tapestore_like_gateway() -> str:
+    def _resolve_tapestore_like_gateway() -> str:  # noqa: C901
         """Same DB as bubseek: env → workspace → repo .env (via __file__) → notebook_dir."""
         try:
             from bubseek.config import discover_project_root, resolve_tapestore_url
@@ -261,9 +265,8 @@ def _(  # noqa: C901
                 md = MetaData()
                 tbl = Table(table_name, md, autoload_with=engine)
                 nulls_last = case((tbl.c.next_run_time.is_(None), 1), else_=0)
-                stmt = (
-                    select(tbl.c.id, tbl.c.next_run_time, tbl.c.job_state)
-                    .order_by(nulls_last.asc(), tbl.c.next_run_time.asc())
+                stmt = select(tbl.c.id, tbl.c.next_run_time, tbl.c.job_state).order_by(
+                    nulls_last.asc(), tbl.c.next_run_time.asc()
                 )
                 with engine.connect() as conn:
                     result = conn.execute(stmt)
@@ -312,11 +315,7 @@ def _(  # noqa: C901
 
     meta_html = f'<p class="sk-meta">{he(meta_line)}</p>' if meta_line else ""
 
-    thead = (
-        "<thead><tr>"
-        "<th>Id</th><th>Run at</th><th>Message</th>"
-        "</tr></thead>"
-    )
+    thead = "<thead><tr><th>Id</th><th>Run at</th><th>Message</th></tr></thead>"
     body_rows = []
     for r in rows_out:
         body_rows.append(
