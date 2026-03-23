@@ -36,10 +36,11 @@ If you do not want them installed by default, put them under `optional-dependenc
 [project.optional-dependencies]
 feishu = ["bub-feishu"]
 dingtalk = ["bub-dingtalk"]
+wechat = ["bub-wechat"]
 marimo = ["bubseek-marimo"]
 ```
 
-Install with: `uv sync --extra feishu` or `pip install bubseek[feishu]` (Feishu); `uv sync --extra dingtalk` or `pip install bubseek[dingtalk]` (DingTalk); `uv sync --extra marimo` or `pip install bubseek[marimo]` (Marimo channel with bundled notebook skills).
+Install with: `uv sync --extra feishu` or `pip install bubseek[feishu]` (Feishu); `uv sync --extra dingtalk` or `pip install bubseek[dingtalk]` (DingTalk); `uv sync --extra wechat` or `pip install bubseek[wechat]` ([WeChat](https://github.com/bubbuild/bub-contrib/tree/main/packages/bub-wechat)); `uv sync --extra marimo` or `pip install bubseek[marimo]` (Marimo channel with bundled notebook skills).
 
 ## Runtime credentials
 
@@ -71,6 +72,7 @@ BUB_API_BASE=https://openrouter.ai/api/v1
 | `BUB_DINGTALK_CLIENT_ID` | AppKey for DingTalk channel (optional extra: `bubseek[dingtalk]`) |
 | `BUB_DINGTALK_CLIENT_SECRET` | AppSecret for DingTalk channel |
 | `BUB_DINGTALK_ALLOW_USERS` | Comma-separated staff_ids, or `*` for all |
+| WeChat token file | After `bub login wechat`, credentials live under `~/.bub/wechat_token.json` (optional extra: `bubseek[wechat]`); see [bub-wechat](https://github.com/bubbuild/bub-contrib/tree/main/packages/bub-wechat) |
 | `BUB_MARIMO_HOST` | Marimo channel bind host (default: `127.0.0.1`) |
 | `BUB_MARIMO_PORT` | Marimo channel bind port (default: `2718`) |
 | `BUB_MARIMO_WORKSPACE` | Workspace for insights (default: `BUB_WORKSPACE_PATH` or `.`) |

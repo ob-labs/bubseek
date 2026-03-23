@@ -8,6 +8,14 @@ When the message context shows `$dingtalk` and `chat_id`, you are in a DingTalk 
 
 Only use `dingtalk_send` when you need to send a message from within a tool (e.g. progress update during a long task).
 
+## WeChat Channel ($wechat)
+
+When the message context shows `$wechat` and a WeChat-oriented `session_id` / `chat_id`, you are in a WeChat conversation.
+
+**To reply: return your response as plain text.** The framework will deliver it to the user.
+
+Only use the `wechat` tool when you need to send from within another tool (e.g. progress update). See [bub-wechat](https://github.com/bubbuild/bub-contrib/tree/main/packages/bub-wechat).
+
 ## Marimo Channel ($marimo)
 
 When the message context shows `$marimo` and `chat_id`, you are in a Marimo gateway chat.

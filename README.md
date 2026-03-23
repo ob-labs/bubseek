@@ -58,7 +58,7 @@ Then sync your environment:
 uv sync
 ```
 
-- Optional extras: Feishu `uv sync --extra feishu`, DingTalk `uv sync --extra dingtalk`, Marimo `uv sync --extra marimo`.
+- Optional extras: Feishu `uv sync --extra feishu`, DingTalk `uv sync --extra dingtalk`, WeChat `uv sync --extra wechat`, Marimo `uv sync --extra marimo`.
 
 ## Documentation
 
