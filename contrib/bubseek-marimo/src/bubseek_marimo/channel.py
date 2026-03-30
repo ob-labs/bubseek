@@ -104,17 +104,13 @@ class MarimoChannel(Channel):
 
     def _tapestore_url(self) -> str:
         if resolve_tapestore_url is not None:
-            return resolve_tapestore_url(self._workspace_dir())
-        env = env_with_workspace_dotenv(self._workspace_dir()) if env_with_workspace_dotenv else self._marimo_env()
-        url = (env.get("BUB_TAPESTORE_SQLALCHEMY_URL") or "").strip()
+            url = resolve_tapestore_url(self._workspace_dir())
+        else:
+            env = env_with_workspace_dotenv(self._workspace_dir()) if env_with_workspace_dotenv else self._marimo_env()
+            url = (env.get("BUB_TAPESTORE_SQLALCHEMY_URL") or "").strip()
         if url:
             return url
-        host = (env.get("OCEANBASE_HOST") or "127.0.0.1").strip()
-        port = int((env.get("OCEANBASE_PORT") or "2881").strip())
-        user = (env.get("OCEANBASE_USER") or "root").strip()
-        password = env.get("OCEANBASE_PASSWORD") or ""
-        database = (env.get("OCEANBASE_DATABASE") or "bub").strip()
-        return f"mysql+oceanbase://{user}:{password}@{host}:{port}/{database}"
+        raise RuntimeError("BUB_TAPESTORE_SQLALCHEMY_URL is required for the marimo channel")
 
     def _ensure_seed_notebooks(self) -> None:
         insights_dir = self._insights_dir()

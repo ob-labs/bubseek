@@ -8,7 +8,7 @@
 
 bubseek turns fragmented data across operational systems, repositories, and agent runtime traces into **explainable, actionable, and shareable insights** without heavy ETL. It keeps the Bub runtime and extension model while packaging a practical default distribution for real deployments.
 
-`bubseek` now boots through a single distribution entry point and targets SeekDB/OceanBase tape storage through the SQLAlchemy URL or `OCEANBASE_*` settings.
+`bubseek` packages a practical Bub distribution with SeekDB/OceanBase defaults, bundled channels, and builtin skills, without adding a second CLI surface on top of `bub`.
 
 ## Features
 
@@ -16,7 +16,7 @@ bubseek turns fragmented data across operational systems, repositories, and agen
 - **Explainability first** — Conclusions are returned together with agent reasoning context.
 - **Cloud-edge ready** — Supports distributed deployment and local execution boundaries.
 - **Agent observability** — Treats agent behavior as governed, inspectable runtime data.
-- **Bub-compatible** — Forwards Bub commands directly; no fork of the core runtime.
+- **Bub-compatible** — Uses Bub directly as the runtime and command surface; no fork of the core runtime.
 
 ## Quick start
 
@@ -26,23 +26,15 @@ Requires [uv](https://docs.astral.sh/uv/) (recommended) or pip, and Python 3.12+
 git clone https://github.com/ob-labs/bubseek.git
 cd bubseek
 uv sync
-uv run bubseek --help
-uv run bubseek chat
+uv run bub --help
+uv run bub chat
 ```
 
-If your runtime reads credentials from `.env`, bubseek forwards them to the Bub subprocess:
-
-```dotenv
-BUB_MODEL=openrouter:qwen/qwen3-coder-next
-BUB_API_KEY=sk-or-v1-...
-BUB_API_BASE=https://openrouter.ai/api/v1
-```
-
-Configure SeekDB or OceanBase before running `bubseek`, using `BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://...` or the matching `OCEANBASE_*` variables.
+Configure SeekDB or OceanBase before running `bubseek`, using `BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://...`.
 
 ## Add contrib
 
-Contrib packages remain standard Python packages. Add them as normal dependencies. The bundled channel extras resolve from GitHub-hosted `bub-contrib` packages instead of local workspace packages.
+Contrib packages remain standard Python packages. Add them as normal dependencies. bubseek ships its built-in channels and marimo support by default, and resolves bundled contrib packages from GitHub-hosted `bub-contrib` packages instead of local workspace packages.
 
 ```toml
 [project]
@@ -57,8 +49,6 @@ Then sync your environment:
 ```bash
 uv sync
 ```
-
-- Optional extras: Feishu `uv sync --extra feishu`, DingTalk `uv sync --extra dingtalk`, WeChat `uv sync --extra wechat`, Discord `uv sync --extra discord`, Marimo `uv sync --extra marimo`.
 
 ## Documentation
 

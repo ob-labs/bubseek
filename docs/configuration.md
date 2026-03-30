@@ -30,22 +30,25 @@ dependencies = [
 ]
 ```
 
-If you do not want them installed by default, put them under `optional-dependencies` instead:
+For bubseek itself, the official distribution keeps its built-in channels and marimo support in the default dependency set:
 
 ```toml
-[project.optional-dependencies]
-feishu = ["bub-feishu"]
-dingtalk = ["bub-dingtalk"]
-wechat = ["bub-wechat"]
-discord = ["bub-discord"]
-marimo = ["bubseek-marimo"]
+[project]
+dependencies = [
+    "bub",
+    "bub-feishu",
+    "bub-dingtalk",
+    "bub-wechat",
+    "bub-discord",
+    "bubseek-marimo",
+]
 ```
 
-Install with: `uv sync --extra feishu` / `pip install bubseek[feishu]` (Feishu); `uv sync --extra dingtalk` / `pip install bubseek[dingtalk]` (DingTalk); `uv sync --extra wechat` / `pip install bubseek[wechat]` ([WeChat](https://github.com/bubbuild/bub-contrib/tree/main/packages/bub-wechat)); `uv sync --extra discord` / `pip install bubseek[discord]` ([Discord](https://github.com/bubbuild/bub-contrib/tree/main/packages/bub-discord)); `uv sync --extra marimo` / `pip install bubseek[marimo]` (Marimo channel with bundled notebook skills).
+Install with the normal project sync or package install: `uv sync` / `pip install .`.
 
 ## Runtime credentials
 
-bubseek forwards `.env` values to the Bub subprocess. Bub reads `BUB_*` variables (see [Bub deployment](https://github.com/bubbuild/bub/blob/main/docs/deployment.md)).
+Bub reads `BUB_*` variables directly (see [Bub deployment](https://github.com/bubbuild/bub/blob/main/docs/deployment.md)).
 
 **Minimal OpenRouter setup:**
 
@@ -68,13 +71,13 @@ BUB_API_BASE=https://openrouter.ai/api/v1
 | `BUB_TELEGRAM_ALLOW_CHATS` | Comma-separated chat allowlist |
 | `BUB_SEARCH_OLLAMA_API_KEY` | Required for web.search tool (bundled) |
 | `BUB_SEARCH_OLLAMA_API_BASE` | Ollama API base (default: `https://ollama.com/api`) |
-| `BUB_FEISHU_APP_ID` | Required for Feishu channel (optional extra: `bubseek[feishu]`) |
+| `BUB_FEISHU_APP_ID` | Required for Feishu channel |
 | `BUB_FEISHU_APP_SECRET` | Required for Feishu channel |
-| `BUB_DINGTALK_CLIENT_ID` | AppKey for DingTalk channel (optional extra: `bubseek[dingtalk]`) |
+| `BUB_DINGTALK_CLIENT_ID` | AppKey for DingTalk channel |
 | `BUB_DINGTALK_CLIENT_SECRET` | AppSecret for DingTalk channel |
 | `BUB_DINGTALK_ALLOW_USERS` | Comma-separated staff_ids, or `*` for all |
-| WeChat token file | After `bub login wechat`, credentials live under `~/.bub/wechat_token.json` (optional extra: `bubseek[wechat]`); see [bub-wechat](https://github.com/bubbuild/bub-contrib/tree/main/packages/bub-wechat) |
-| `BUB_DISCORD_TOKEN` | Discord bot token (optional extra: `bubseek[discord]`); see [bub-discord](https://github.com/bubbuild/bub-contrib/tree/main/packages/bub-discord) |
+| WeChat token file | After `bub login wechat`, credentials live under `~/.bub/wechat_token.json`; see [bub-wechat](https://github.com/bubbuild/bub-contrib/tree/main/packages/bub-wechat) |
+| `BUB_DISCORD_TOKEN` | Discord bot token; see [bub-discord](https://github.com/bubbuild/bub-contrib/tree/main/packages/bub-discord) |
 | `BUB_DISCORD_ALLOW_USERS` | Optional comma-separated allowlist (user id / username / global name) |
 | `BUB_DISCORD_ALLOW_CHANNELS` | Optional comma-separated channel id allowlist |
 | `BUB_MARIMO_HOST` | Marimo channel bind host (default: `127.0.0.1`) |
@@ -82,7 +85,7 @@ BUB_API_BASE=https://openrouter.ai/api/v1
 | `BUB_MARIMO_WORKSPACE` | Workspace for insights (default: `BUB_WORKSPACE_PATH` or `.`) |
 | `BUB_TAPESTORE_SQLALCHEMY_URL` | SQLAlchemy tape store URL (bundled) |
 
-When `BUB_TAPESTORE_SQLALCHEMY_URL` is unset, bubseek builds a SeekDB/OceanBase URL from the `OCEANBASE_*` variables. Set either the full `mysql+oceanbase://...` URL or the `OCEANBASE_*` fields before running.
+Set `BUB_TAPESTORE_SQLALCHEMY_URL` to the full `mysql+oceanbase://...` URL before running any tapestore-backed features.
 
 ## Builtin skills
 
@@ -93,14 +96,14 @@ bubseek also vendors skills at build time via `pdm-build-skills`; these are merg
 - `friendly-python` and `piglet` from [PsiACE/skills](https://github.com/PsiACE/skills)
 - `plugin-creator` from [bub-contrib/.agents/skills/plugin-creator](https://github.com/bubbuild/bub-contrib/tree/main/.agents/skills/plugin-creator)
 
-The optional `bubseek[marimo]` extra provides:
+The bundled marimo support provides:
 - **MarimoChannel** — inbound WebSocket for gateway; chat dashboard at `http://0.0.0.0:2718/`
 - **marimo skill** — output data insights as marimo `.py` notebooks; index of charts in `{workspace}/insights/`
 - References [marimo-team/skills](https://github.com/marimo-team/skills) marimo-notebook conventions
 
 The dashboard and index are generated into `{workspace}/insights/` at runtime from one canonical template source. They should not be hand-edited inside the repository.
 
-Run `bubseek gateway --enable-channel marimo` to enable the marimo dashboard.
+Run `bub gateway --enable-channel marimo` to enable the marimo dashboard.
 
 ## Advanced: downstream skill packaging
 

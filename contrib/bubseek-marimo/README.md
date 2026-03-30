@@ -12,15 +12,15 @@ Marimo channel for Bub — native marimo dashboard with chat and insights index.
 ## Installation
 
 ```bash
-uv sync --extra marimo
+uv sync
 # or
-pip install bubseek[marimo]
+pip install .
 ```
 
 ## Gateway
 
 ```bash
-bubseek gateway --enable-channel marimo
+bub gateway --enable-channel marimo
 ```
 
 Open `http://localhost:2718/` — marimo gallery. Click **dashboard** for chat + index. The dashboard queues turns asynchronously and refreshes transcript events from the channel backend.

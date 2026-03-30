@@ -8,7 +8,6 @@ from urllib.parse import urlparse
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from sqlalchemy import URL
 
 _SETTINGS_CONFIG = SettingsConfigDict(
     env_file=".env",
@@ -59,27 +58,11 @@ class DatabaseSettings(BaseSettings):
 
     bub_home: Path = Field(default=Path.home() / ".bub", validation_alias="BUB_HOME")
     tapestore_sqlalchemy_url: str = Field(default="", validation_alias="BUB_TAPESTORE_SQLALCHEMY_URL")
-    oceanbase_host: str = Field(default="127.0.0.1", validation_alias="OCEANBASE_HOST")
-    oceanbase_port: int = Field(default=2881, validation_alias="OCEANBASE_PORT")
-    oceanbase_user: str = Field(default="root", validation_alias="OCEANBASE_USER")
-    oceanbase_password: str = Field(default="", validation_alias="OCEANBASE_PASSWORD")
-    oceanbase_database: str = Field(default="bub", validation_alias="OCEANBASE_DATABASE")
 
     @property
     def resolved_tapestore_url(self) -> str:
-        """Return the explicit tape store URL or build one from OCEANBASE_* settings."""
-        if self.tapestore_sqlalchemy_url.strip():
-            return self.tapestore_sqlalchemy_url.strip()
-        return str(
-            URL.create(
-                "mysql+oceanbase",
-                username=self.oceanbase_user,
-                password=self.oceanbase_password,
-                host=self.oceanbase_host,
-                port=self.oceanbase_port,
-                database=self.oceanbase_database,
-            ).render_as_string(hide_password=False)
-        )
+        """Return the explicit tape store URL."""
+        return self.tapestore_sqlalchemy_url.strip()
 
     @property
     def backend_name(self) -> str:
@@ -91,25 +74,17 @@ class DatabaseSettings(BaseSettings):
         """Return connection params when using a MySQL-compatible backend."""
         if self.backend_name != "mysql":
             return None
-        host = self.oceanbase_host
-        port = self.oceanbase_port
-        user = self.oceanbase_user
-        password = self.oceanbase_password
-        database = self.oceanbase_database
         try:
             parsed = urlparse(self.resolved_tapestore_url)
-            if parsed.hostname:
-                host = parsed.hostname
-            if parsed.port:
-                port = parsed.port
-            if parsed.username:
-                user = parsed.username
-            if parsed.password is not None:
-                password = parsed.password
-            if parsed.path and parsed.path.strip("/"):
-                database = parsed.path.strip("/")
-        except Exception:  # noqa: S110
-            pass
+            host = parsed.hostname or ""
+            port = parsed.port or 3306
+            user = parsed.username or ""
+            password = parsed.password or ""
+            database = parsed.path.strip("/")
+        except Exception:
+            return None
+        if not host or not database:
+            return None
         return host, port, user, password, database
 
 
@@ -147,7 +122,7 @@ def resolve_tapestore_url(
     - If workspace is given: use workspace/.env (BubSeekSettings).
     - Else if BUB_WORKSPACE_PATH is set: use that workspace.
     - Else walk discover_from (or cwd) and parents for first .env, use that directory as workspace.
-    - Else use default (BubSeekSettings.from_workspace(None) → env or OCEANBASE_*).
+    - Else use process environment only.
     """
     if workspace is not None:
         return BubSeekSettings.from_workspace(workspace).db.resolved_tapestore_url

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Query `apscheduler_jobs` in the same DB the gateway uses (tapestore / OCEANBASE_*).
+"""Query `apscheduler_jobs` in the same DB the gateway uses.
 
 Use when Marimo schedule kanban shows no rows but the assistant reported a job id.
 

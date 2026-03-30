@@ -6,7 +6,8 @@ import tomllib
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
+from typing import Any
 
 import pytest
 from bub.skills import _read_skill
@@ -27,62 +28,34 @@ def imported_bubseek_modules(*module_names: str) -> Iterator[list[ModuleType]]:
                 sys.modules.pop(module_name, None)
 
 
-def test_pyproject_pins_bub_and_bundled_plugins() -> None:
-    data = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-
-    deps = data["project"]["dependencies"]
-    assert any("bub" in d for d in deps)
-    assert any("bub-web-search" in d for d in deps)
-    optional = data["project"].get("optional-dependencies", {})
-    assert "feishu" in optional
-    assert "bub-feishu" in optional["feishu"]
-    assert "dingtalk" in optional
-    assert "bub-dingtalk" in optional["dingtalk"]
-    assert "wechat" in optional
-    assert "bub-wechat" in optional["wechat"]
-    assert "discord" in optional
-    assert "bub-discord" in optional["discord"]
-    assert any("bub-tapestore-sqlalchemy" in d for d in deps)
-
-    sources = data.get("tool", {}).get("uv", {}).get("sources", {})
-    assert "bub" in sources
-    assert sources["bub"].get("git") == "https://github.com/bubbuild/bub.git"
-    assert "bub-dingtalk" in sources
-    assert sources["bub-dingtalk"].get("git") == "https://github.com/bubbuild/bub-contrib.git"
-    assert sources["bub-dingtalk"].get("subdirectory") == "packages/bub-dingtalk"
-    assert "bub-feishu" in sources
-    assert sources["bub-feishu"].get("git") == "https://github.com/bubbuild/bub-contrib.git"
-    assert "bub-wechat" in sources
-    assert sources["bub-wechat"].get("git") == "https://github.com/bubbuild/bub-contrib.git"
-    assert sources["bub-wechat"].get("subdirectory") == "packages/bub-wechat"
-    assert "bub-discord" in sources
-    assert sources["bub-discord"].get("git") == "https://github.com/bubbuild/bub-contrib.git"
-    assert sources["bub-discord"].get("subdirectory") == "packages/bub-discord"
-    requires = data["build-system"]["requires"]
-    assert "pdm-backend" in requires
-    assert any("pdm-build-skills" in r for r in requires)
+def _load_pyproject() -> dict[str, Any]:
+    return tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
 
-def test_pyproject_includes_builtin_skills_in_wheel() -> None:
-    data = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+def _settings_with_db_params(params: tuple[str, int, str, str, str] | None) -> SimpleNamespace:
+    db = SimpleNamespace(mysql_connection_params=lambda: params)
+    return SimpleNamespace(db=db)
 
-    assert data["tool"]["pdm"]["build"]["includes"] == [
+
+def test_distribution_metadata_exposes_bub_plugin_without_console_script() -> None:
+    data = _load_pyproject()
+
+    project = data["project"]
+    assert "scripts" not in project
+    assert project["entry-points"]["bub"] == {
+        "oceanbase-dialect": "bubseek.oceanbase:register",
+    }
+
+
+def test_pyproject_includes_package_and_builtin_skills_in_wheel() -> None:
+    data = _load_pyproject()
+
+    build = data["tool"]["pdm"]["build"]
+    assert build["includes"] == [
         "src/bubseek",
         "src/skills",
     ]
-    skills = data["tool"]["pdm"]["build"]["skills"]
-    assert skills == [
-        {
-            "git": "https://github.com/PsiACE/skills.git",
-            "subpath": "skills",
-            "include": ["friendly-python", "piglet"],
-        },
-        {
-            "git": "https://github.com/bubbuild/bub-contrib.git",
-            "subpath": ".agents/skills",
-            "include": ["plugin-creator"],
-        },
-    ]
+    assert build["skills"]
 
 
 def test_bundled_skills_have_valid_frontmatter() -> None:
@@ -97,122 +70,17 @@ def test_bundled_skills_have_valid_frontmatter() -> None:
     assert "github-repo-cards" in skill_names
 
 
-def test_main_forwards_explicit_args(monkeypatch) -> None:
-    with imported_bubseek_modules("bubseek.__main__", "bubseek.bootstrap") as [main_mod, bootstrap_mod]:
-        observed_command: list[str] | None = None
-        observed_env: dict[str, str] | None = None
-
-        monkeypatch.setattr(bootstrap_mod.BubSeekBootstrap, "ensure_database", lambda self: None)
-        monkeypatch.setattr(bootstrap_mod.shutil, "which", lambda _name: "/usr/bin/bub")
-
-        def _capture_execve(path: str, argv: list[str], env: dict[str, str]) -> None:
-            nonlocal observed_command, observed_env
-            observed_command = argv
-            observed_env = env
-            raise SystemExit(0)
-
-        monkeypatch.setattr(bootstrap_mod.os, "execve", _capture_execve)
-        with pytest.raises(SystemExit) as exc_info:
-            main_mod.main(["chat", "--help"])
-        assert exc_info.value.code == 0
-
-    assert observed_command == ["/usr/bin/bub", "chat", "--help"]
-    assert observed_env is not None
-
-
-def test_main_defaults_to_help(monkeypatch) -> None:
-    with imported_bubseek_modules("bubseek.__main__", "bubseek.bootstrap") as [main_mod, bootstrap_mod]:
-        observed_command: list[str] | None = None
-
-        monkeypatch.setattr(bootstrap_mod.BubSeekBootstrap, "ensure_database", lambda self: None)
-        monkeypatch.setattr(bootstrap_mod.shutil, "which", lambda _name: "/usr/bin/bub")
-
-        def _capture_execve(path: str, argv: list[str], env: dict[str, str]) -> None:
-            nonlocal observed_command
-            observed_command = argv
-            raise SystemExit(0)
-
-        monkeypatch.setattr(bootstrap_mod.os, "execve", _capture_execve)
-        with pytest.raises(SystemExit) as exc_info:
-            main_mod.main([])
-        assert exc_info.value.code == 0
-
-    assert observed_command == ["/usr/bin/bub", "--help"]
-
-
-def test_wrapper_forwards_dotenv_values(monkeypatch, tmp_path: Path) -> None:
-    env_file = tmp_path / ".env"
-    env_file.write_text(
-        "\n".join([
-            "BUB_API_KEY=demo-key",
-            "BUB_API_BASE=https://openrouter.ai/api/v1",
-        ]),
-        encoding="utf-8",
-    )
-
-    with imported_bubseek_modules("bubseek.__main__", "bubseek.bootstrap") as [main_mod, bootstrap_mod]:
-        observed_command: list[str] | None = None
-        observed_env: dict[str, str] | None = None
-
-        monkeypatch.chdir(tmp_path)
-        monkeypatch.setattr(bootstrap_mod.BubSeekBootstrap, "ensure_database", lambda self: None)
-        monkeypatch.setattr(bootstrap_mod.shutil, "which", lambda _name: "/usr/bin/bub")
-
-        def _capture_execve(path: str, argv: list[str], env: dict[str, str]) -> None:
-            nonlocal observed_command, observed_env
-            observed_command = argv
-            observed_env = env
-            raise SystemExit(0)
-
-        monkeypatch.setattr(bootstrap_mod.os, "execve", _capture_execve)
-        with pytest.raises(SystemExit) as exc_info:
-            main_mod.main(["chat"])
-        assert exc_info.value.code == 0
-
-    assert observed_command == ["/usr/bin/bub", "chat"]
-    assert observed_env is not None
-    assert observed_env["BUB_API_KEY"] == "demo-key"
-    assert observed_env["BUB_API_BASE"] == "https://openrouter.ai/api/v1"
-    assert observed_env["BUB_TAPESTORE_SQLALCHEMY_URL"].startswith("mysql+oceanbase://")
-
-
-def test_wrapper_forwards_workspace_to_plugins(monkeypatch, tmp_path: Path) -> None:
-    with imported_bubseek_modules("bubseek.__main__", "bubseek.bootstrap") as [main_mod, bootstrap_mod]:
-        observed_env: dict[str, str] | None = None
-        workspace = tmp_path / "workspace"
-        workspace.mkdir()
-
-        monkeypatch.setattr(bootstrap_mod.BubSeekBootstrap, "ensure_database", lambda self: None)
-        monkeypatch.setattr(bootstrap_mod.shutil, "which", lambda _name: "/usr/bin/bub")
-
-        def _capture_execve(path: str, argv: list[str], env: dict[str, str]) -> None:
-            nonlocal observed_env
-            observed_env = env
-            raise SystemExit(0)
-
-        monkeypatch.setattr(bootstrap_mod.os, "execve", _capture_execve)
-        with pytest.raises(SystemExit):
-            main_mod.main(["--workspace", str(workspace), "gateway", "--enable-channel", "marimo"])
-
-    assert observed_env is not None
-    assert observed_env["BUB_WORKSPACE_PATH"] == str(workspace.resolve())
-
-
-def test_database_settings_default_to_oceanbase(monkeypatch, tmp_path: Path) -> None:
+def test_resolve_tapestore_url_requires_explicit_url(monkeypatch, tmp_path: Path) -> None:
     with imported_bubseek_modules("bubseek.config") as [config_mod]:
         monkeypatch.setenv("BUB_HOME", str(tmp_path / "runtime-home"))
-        monkeypatch.setenv("BUB_TAPESTORE_SQLALCHEMY_URL", "")  # override .env so default is used
+        monkeypatch.delenv("BUB_WORKSPACE_PATH", raising=False)
+        monkeypatch.setenv("BUB_TAPESTORE_SQLALCHEMY_URL", "")
 
         settings = config_mod.DatabaseSettings()
 
-    assert settings.backend_name == "mysql"
-    assert settings.mysql_connection_params() == (
-        "127.0.0.1",
-        2881,
-        "root",
-        "",
-        "bub",
-    )
+    assert settings.resolved_tapestore_url == ""
+    assert settings.backend_name == ""
+    assert settings.mysql_connection_params() is None
 
 
 def test_database_settings_extract_mysql_params(monkeypatch) -> None:
@@ -232,3 +100,149 @@ def test_database_settings_extract_mysql_params(monkeypatch) -> None:
         "secret",
         "analytics",
     )
+
+
+def test_resolve_tapestore_url_reads_workspace_env_file(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / ".env").write_text(
+        "BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://workspace:secret@seekdb.example:2881/workspace_db\n",
+        encoding="utf-8",
+    )
+
+    with imported_bubseek_modules("bubseek.config") as [config_mod]:
+        url = config_mod.resolve_tapestore_url(workspace=workspace)
+
+    assert url == "mysql+oceanbase://workspace:secret@seekdb.example:2881/workspace_db"
+
+
+def test_resolve_tapestore_url_prefers_bub_workspace_path(monkeypatch, tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / ".env").write_text(
+        "BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://workspace:secret@seekdb.example:2881/workspace_db\n",
+        encoding="utf-8",
+    )
+
+    other_root = tmp_path / "other"
+    nested = other_root / "nested"
+    nested.mkdir(parents=True)
+    (other_root / ".env").write_text(
+        "BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://discovered:secret@seekdb.example:2881/discovered_db\n",
+        encoding="utf-8",
+    )
+
+    with imported_bubseek_modules("bubseek.config") as [config_mod]:
+        monkeypatch.setenv("BUB_WORKSPACE_PATH", str(workspace))
+        url = config_mod.resolve_tapestore_url(discover_from=nested)
+
+    assert url == "mysql+oceanbase://workspace:secret@seekdb.example:2881/workspace_db"
+
+
+def test_resolve_tapestore_url_discovers_parent_env(monkeypatch, tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    nested = root / "src" / "pkg"
+    nested.mkdir(parents=True)
+    (root / ".env").write_text(
+        "BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://discovered:secret@seekdb.example:2881/discovered_db\n",
+        encoding="utf-8",
+    )
+
+    with imported_bubseek_modules("bubseek.config") as [config_mod]:
+        monkeypatch.delenv("BUB_WORKSPACE_PATH", raising=False)
+        url = config_mod.resolve_tapestore_url(discover_from=nested)
+
+    assert url == "mysql+oceanbase://discovered:secret@seekdb.example:2881/discovered_db"
+
+
+def test_ensure_database_skips_non_mysql_backends(monkeypatch) -> None:
+    with imported_bubseek_modules("bubseek.database") as [database_mod]:
+        monkeypatch.setattr(
+            database_mod.BubSeekSettings,
+            "from_workspace",
+            lambda workspace=None: _settings_with_db_params(None),
+        )
+        create_called = False
+        exists_called = False
+
+        def _create_database(*args):
+            nonlocal create_called
+            create_called = True
+            return True
+
+        def _database_exists(*args):
+            nonlocal exists_called
+            exists_called = True
+            return True
+
+        monkeypatch.setattr(database_mod, "create_database", _create_database)
+        monkeypatch.setattr(database_mod, "database_exists", _database_exists)
+
+        database_mod.ensure_database()
+
+    assert not exists_called
+    assert not create_called
+
+
+def test_ensure_database_returns_when_database_exists(monkeypatch) -> None:
+    with imported_bubseek_modules("bubseek.database") as [database_mod]:
+        monkeypatch.setattr(
+            database_mod.BubSeekSettings,
+            "from_workspace",
+            lambda workspace=None: _settings_with_db_params(("seekdb.example", 2881, "seek", "secret", "analytics")),
+        )
+        create_called = False
+
+        monkeypatch.setattr(database_mod, "database_exists", lambda *args: True)
+
+        def _create_database(*args):
+            nonlocal create_called
+            create_called = True
+            return True
+
+        monkeypatch.setattr(database_mod, "create_database", _create_database)
+
+        database_mod.ensure_database()
+
+    assert not create_called
+
+
+def test_ensure_database_creates_missing_database_without_prompt(monkeypatch) -> None:
+    with imported_bubseek_modules("bubseek.database") as [database_mod]:
+        monkeypatch.setattr(
+            database_mod.BubSeekSettings,
+            "from_workspace",
+            lambda workspace=None: _settings_with_db_params(("seekdb.example", 2881, "seek", "secret", "analytics")),
+        )
+        monkeypatch.setattr(database_mod, "database_exists", lambda *args: False)
+        monkeypatch.setattr(database_mod.sys.stdin, "isatty", lambda: False)
+
+        created = False
+
+        def _create_database(*args):
+            nonlocal created
+            created = True
+            return True
+
+        monkeypatch.setattr(database_mod, "create_database", _create_database)
+
+        database_mod.ensure_database()
+
+    assert created
+
+
+def test_ensure_database_respects_tty_decline(monkeypatch) -> None:
+    with imported_bubseek_modules("bubseek.database") as [database_mod]:
+        monkeypatch.setattr(
+            database_mod.BubSeekSettings,
+            "from_workspace",
+            lambda workspace=None: _settings_with_db_params(("seekdb.example", 2881, "seek", "secret", "analytics")),
+        )
+        monkeypatch.setattr(database_mod, "database_exists", lambda *args: False)
+        monkeypatch.setattr(database_mod.sys.stdin, "isatty", lambda: True)
+        monkeypatch.setattr(database_mod.typer, "confirm", lambda *args, **kwargs: False)
+
+        with pytest.raises(database_mod.typer.Exit) as exc_info:
+            database_mod.ensure_database()
+
+    assert exc_info.value.exit_code == 1

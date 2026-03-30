@@ -5,7 +5,7 @@ bubseek is a Bub distribution aimed at users who want a practical default packag
 The main user path is simple:
 
 1. Install `bubseek`
-2. Run Bub through `bubseek`
+2. Run `bub`
 3. Add contrib through normal Python dependencies
 4. Keep using Bub as usual
 

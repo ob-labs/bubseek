@@ -28,6 +28,9 @@ class OceanBaseDialect(_OceanBaseDialect):
     that to avoid masking the original error.
     """
 
+    # SQLAlchemy only reads this on the concrete dialect class (__dict__), not via MRO.
+    supports_statement_cache = True
+
     def do_release_savepoint(self, connection, name: str) -> None:
         try:
             super().do_release_savepoint(connection, name)
@@ -49,9 +52,8 @@ registry.register("mysql.oceanbase", "bubseek.oceanbase", "OceanBaseDialect")
 def _patch_tape_store_validate_schema() -> None:
     """Tolerate duplicate index (MySQL 1061) in bub_tapestore_sqlalchemy.
 
-    OceanBase/SeekDB may already have indexes (e.g. idx_tape_entries_anchor_name_key).
-    When the store calls index.create(..., checkfirst=True), some drivers still raise
-    1061. We catch and ignore so startup/shutdown does not fail.
+    SeekDB/OceanBase introspection may not match SQLAlchemy's checkfirst, so
+    CREATE INDEX is attempted even when the index already exists on the table.
     """
     try:
         from bub_tapestore_sqlalchemy import store as _store
@@ -74,7 +76,6 @@ def _patch_tape_store_validate_schema() -> None:
     _store.SQLAlchemyTapeStore._validate_schema = _validate_schema_tolerant  # type: ignore[method-assign]
 
 
-# Run patch at import so it is in place before any plugin creates the store.
 _patch_tape_store_validate_schema()
 
 

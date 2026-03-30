@@ -12,6 +12,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from types import ModuleType
 from urllib.parse import urlsplit
 
 import pytest
@@ -37,6 +38,17 @@ REQUEST_TIMEOUT = 10
 
 async def _noop_handler(*_args, **_kwargs) -> None:
     return None
+
+
+def _stub_bubseek_oceanbase(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(sys.modules, "bubseek.oceanbase", ModuleType("bubseek.oceanbase"))
+
+
+def _require_tapestore_url() -> str:
+    url = (os.environ.get("BUB_TAPESTORE_SQLALCHEMY_URL") or "").strip()
+    if not url:
+        pytest.skip("BUB_TAPESTORE_SQLALCHEMY_URL is required for marimo gateway tests")
+    return url
 
 
 def _port_ready(host: str, port: int, timeout: float = 2.0) -> bool:
@@ -91,10 +103,12 @@ def _assert_notebook_loads(filename: str) -> tuple[int, str]:
 
 
 def test_workspace_resolution_priority(monkeypatch, tmp_path) -> None:
+    _stub_bubseek_oceanbase(monkeypatch)
     from bubseek_marimo.channel import MarimoChannel
 
     marimo_workspace = tmp_path / "marimo-workspace"
     bubb_workspace = tmp_path / "bub-workspace"
+    monkeypatch.setenv("BUB_TAPESTORE_SQLALCHEMY_URL", "mysql+oceanbase://seek:secret@seekdb.example:2881/analytics")
     monkeypatch.setenv("BUB_MARIMO_WORKSPACE", str(marimo_workspace))
     monkeypatch.setenv("BUB_WORKSPACE_PATH", str(bubb_workspace))
 
@@ -105,8 +119,10 @@ def test_workspace_resolution_priority(monkeypatch, tmp_path) -> None:
 
 
 def test_workspace_resolution_falls_back_to_cwd(monkeypatch, tmp_path) -> None:
+    _stub_bubseek_oceanbase(monkeypatch)
     from bubseek_marimo.channel import MarimoChannel
 
+    monkeypatch.setenv("BUB_TAPESTORE_SQLALCHEMY_URL", "mysql+oceanbase://seek:secret@seekdb.example:2881/analytics")
     monkeypatch.delenv("BUB_MARIMO_WORKSPACE", raising=False)
     monkeypatch.delenv("BUB_WORKSPACE_PATH", raising=False)
     monkeypatch.chdir(tmp_path)
@@ -120,6 +136,21 @@ def test_workspace_resolution_falls_back_to_cwd(monkeypatch, tmp_path) -> None:
     assert channel._insights_dir() == tmp_path.resolve() / "insights"
 
 
+def test_marimo_channel_requires_explicit_tapestore_url(monkeypatch, tmp_path) -> None:
+    _stub_bubseek_oceanbase(monkeypatch)
+    from bubseek_marimo.channel import MarimoChannel
+
+    monkeypatch.delenv("BUB_TAPESTORE_SQLALCHEMY_URL", raising=False)
+    monkeypatch.delenv("BUB_MARIMO_WORKSPACE", raising=False)
+    monkeypatch.delenv("BUB_WORKSPACE_PATH", raising=False)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("bubseek_marimo.channel.discover_project_root", lambda start: None)
+    monkeypatch.setattr("bubseek_marimo.channel._discover_project_root_fallback", lambda start: None)
+
+    with pytest.raises(RuntimeError, match="BUB_TAPESTORE_SQLALCHEMY_URL is required"):
+        MarimoChannel(_noop_handler)
+
+
 @pytest.fixture(scope="module")
 def gateway_process():
     """Start gateway with marimo channel, yield process, cleanup on teardown."""
@@ -127,6 +158,7 @@ def gateway_process():
 
     workspace = REPO_ROOT
     env = os.environ.copy()
+    env["BUB_TAPESTORE_SQLALCHEMY_URL"] = _require_tapestore_url()
     PORT = _pick_free_port()
     MARIMO_PORT = _pick_free_port()
     while MARIMO_PORT == PORT:
@@ -142,7 +174,7 @@ def gateway_process():
         pytest.fail("uv executable is required for marimo gateway tests")
 
     proc = subprocess.Popen(  # noqa: S603
-        [uv_executable, "run", "bubseek", "gateway", "--enable-channel", "marimo"],
+        [uv_executable, "run", "bub", "gateway", "--enable-channel", "marimo"],
         cwd=str(REPO_ROOT),
         env=env,
         stdout=subprocess.DEVNULL,

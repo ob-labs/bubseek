@@ -17,28 +17,25 @@ classifiers = [
 ]
 dependencies = [
     "bub",
+    # pyobvector imports Expression from sqlglot; sqlglot 30+ removed that export.
+    "sqlglot>=26.0.0,<30.0.0",
     "republic>=0.5.4",
     "typer>=0.12.0",
     "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.0",
+    "bub-feishu",
+    "bub-dingtalk",
+    "bub-wechat",
+    "bub-discord",
     "bub-web-search",
     "bub-tapestore-sqlalchemy",
     "pyobvector>=0.2.22",
     "bubseek-schedule",
+    "bubseek-marimo",
 ]
-
-[project.optional-dependencies]
-feishu = ["bub-feishu"]
-dingtalk = ["bub-dingtalk"]
-wechat = ["bub-wechat"]
-discord = ["bub-discord"]
-marimo = ["bubseek-marimo"]
 
 [project.urls]
 Repository = "https://github.com/ob-labs/bubseek"
-
-[project.scripts]
-bubseek = "bubseek.__main__:main"
 
 [project.entry-points."bub"]
 oceanbase-dialect = "bubseek.oceanbase:register"
@@ -51,13 +48,7 @@ dev = [
 
     "ty>=0.0.14",
 
-    "bub-dingtalk",
-    "bub-wechat",
-    "bub-discord",
-    "bubseek-marimo",
-
     "pandas",
-    "python-dotenv",
 
     "ruff>=0.14.14",
     "mkdocs>=1.6.1",
@@ -85,7 +76,7 @@ skills = [
 index-url = "https://pypi.org/simple"
 
 [tool.uv.sources]
-# bub-contrib: branch=main so optional packages (e.g. bub-wechat, bub-discord) exist at resolve time; uv.lock pins the exact commit.
+# bub-contrib: branch=main so bundled runtime packages (e.g. bub-wechat, bub-discord) exist at resolve time; uv.lock pins the exact commit.
 bub = { git = "https://github.com/bubbuild/bub.git" }
 bub-dingtalk = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "main", subdirectory = "packages/bub-dingtalk" }
 bub-feishu = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "main", subdirectory = "packages/bub-feishu" }

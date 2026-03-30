@@ -2,14 +2,14 @@
 
 The public Python surface is intentionally small.
 
-## bubseek
+## bubseek.config
 
-Package root. Re-exports the CLI entry function.
+Configuration helpers for resolving tapestore settings.
 
-::: bubseek
+::: bubseek.config
 
-## bubseek.__main__
+## bubseek.database
 
-CLI entry point. `main()` forwards CLI arguments and `.env` values to the `bub` subprocess.
+Database bootstrap helpers used by maintenance scripts.
 
-::: bubseek.__main__
+::: bubseek.database

@@ -18,9 +18,11 @@ def _seekdb_url() -> str:
 def test_jobstore_roundtrip():
     """Test jobstore roundtrip via APScheduler on SeekDB/OceanBase."""
     from apscheduler.schedulers.background import BackgroundScheduler
+
+    url = _seekdb_url()
     from bubseek_schedule.jobstore import OceanBaseJobStore
 
-    store = OceanBaseJobStore(url=_seekdb_url(), tablename="apscheduler_jobs_test_roundtrip")
+    store = OceanBaseJobStore(url=url, tablename="apscheduler_jobs_test_roundtrip")
     scheduler = BackgroundScheduler(jobstores={"default": store})
     scheduler.start()
 
@@ -38,9 +40,11 @@ def test_jobstore_roundtrip():
 def test_jobstore_get_due_jobs():
     """Test get_due_jobs and get_next_run_time."""
     from apscheduler.schedulers.background import BackgroundScheduler
+
+    url = _seekdb_url()
     from bubseek_schedule.jobstore import OceanBaseJobStore
 
-    store = OceanBaseJobStore(url=_seekdb_url(), tablename="apscheduler_jobs_test_due")
+    store = OceanBaseJobStore(url=url, tablename="apscheduler_jobs_test_due")
     scheduler = BackgroundScheduler(jobstores={"default": store})
     scheduler.start()
 

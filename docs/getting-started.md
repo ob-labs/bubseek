@@ -1,6 +1,6 @@
 # Getting started
 
-This guide is for the normal user flow: install bubseek, run Bub through the wrapper, and add contrib with standard Python dependencies.
+This guide is for the normal user flow: install bubseek, run `bub`, and add contrib with standard Python dependencies.
 
 ## Prerequisites
 
@@ -22,37 +22,27 @@ This installs `bubseek` together with `bub==0.3.0a1`.
 
 ## Run Bub
 
-Use `bubseek` exactly as you would use `bub`:
+Use the bundled `bub` command directly:
 
 ```bash
-uv run bubseek --help
-uv run bubseek chat
-uv run bubseek run ",help"
+uv run bub --help
+uv run bub chat
+uv run bub run ",help"
 ```
 
-## Use `.env`
-
-If `.env` contains runtime credentials, bubseek forwards them to the Bub subprocess as-is:
-
-```dotenv
-BUB_MODEL=openrouter:qwen/qwen3-coder-next
-BUB_API_KEY=sk-or-v1-...
-BUB_API_BASE=https://openrouter.ai/api/v1
-```
-
-Configure SeekDB or OceanBase before running `bubseek`, for example with `BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://...` or the `OCEANBASE_*` variables.
+Configure SeekDB or OceanBase before running `bubseek`, for example with `BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://...`.
 
 ## Add contrib
 
-Contrib packages are standard Python packages. Add them with normal dependency management. bubseek ships `bub-web-search`, `bub-tapestore-sqlalchemy`, and `bubseek-schedule` by default, and resolves channel extras from GitHub-hosted `bub-contrib` packages.
+Contrib packages are standard Python packages. Add them with normal dependency management. bubseek ships `bub-web-search`, `bub-tapestore-sqlalchemy`, `bubseek-schedule`, Feishu, DingTalk, WeChat, Discord, and Marimo support by default.
 
-**Optional extras:**
+**Bundled channels and tools:**
 
-- **Feishu channel**: `uv sync --extra feishu` or `pip install bubseek[feishu]`
-- **DingTalk channel**: `uv sync --extra dingtalk` or `pip install bubseek[dingtalk]`
-- **WeChat channel**: `uv sync --extra wechat` or `pip install bubseek[wechat]` ([bub-wechat](https://github.com/bubbuild/bub-contrib/tree/main/packages/bub-wechat)); then `uv run bubseek login wechat` (or `bub login wechat`), then `uv run bubseek gateway --enable-channel wechat`
-- **Discord channel**: `uv sync --extra discord` or `pip install bubseek[discord]` ([bub-discord](https://github.com/bubbuild/bub-contrib/tree/main/packages/bub-discord)); set `BUB_DISCORD_TOKEN` (see package README), then `uv run bubseek gateway --enable-channel discord`
-- **Marimo channel** (notebook skills): `uv sync --extra marimo` or `pip install bubseek[marimo]`
+- **Feishu channel**: set `BUB_FEISHU_APP_ID` / `BUB_FEISHU_APP_SECRET`, then enable it in gateway if needed.
+- **DingTalk channel**: set `BUB_DINGTALK_CLIENT_ID` / `BUB_DINGTALK_CLIENT_SECRET`, then enable it in gateway if needed.
+- **WeChat channel**: run `uv run bub login wechat`, then `uv run bub gateway --enable-channel wechat`.
+- **Discord channel**: set `BUB_DISCORD_TOKEN`, then `uv run bub gateway --enable-channel discord`.
+- **Marimo channel**: run `uv run bub gateway --enable-channel marimo`.
 
 **Add other contrib from Git:**
 
