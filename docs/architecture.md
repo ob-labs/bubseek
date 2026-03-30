@@ -1,42 +1,35 @@
 # Architecture
 
-This page explains what bubseek is responsible for, and what it deliberately leaves to Bub and normal Python tooling.
-
 ## What bubseek does
 
-- standardizes tape storage on SeekDB/OceanBase
-- ships a small set of builtin skills with the package
-- bundles a practical set of contrib channels and tools by default
-- pins a practical default Bub runtime version
+bubseek is an attempt to explore a different approach to enterprise data needs: instead of scheduling BI tickets, tell the agent what you want and get insights back.
+
+- Packages Bub with pre-configured dependencies
+- Provides OceanBase/SeekDB storage support via bub-tapestore-sqlalchemy
+- Ships builtin channels: Feishu, DingTalk, WeChat, Discord, Telegram, Marimo
+- Ships builtin skills: github-repo-cards, web-search, schedule
+- Provides built-in observability: agent's own footprint becomes queryable data
 
 ## What bubseek does not do
 
-- it does not fork Bub
-- it does not define a separate manifest format
-- it does not define a separate lockfile format
-- it does not define a custom contrib installation workflow
+- It does not fork Bub
+- It does not define custom formats
+- It does not replace Bub's CLI
 
 ## Responsibility split
 
-### Bub
+| Component | Responsibility |
+| --- | --- |
+| Bub | Runtime, CLI, extension model, tape design |
+| bubseek | Packaging, defaults, plugin wiring, skills |
+| Python packaging | Dependencies, installation |
+| seekdb | Storage for tapes, sessions, tasks |
 
-Bub remains the runtime, command surface, and extension host.
+## Data flow
 
-### bubseek
+All data (tapes, sessions, tasks) flows through bub-tapestore-sqlalchemy into a single seekdb database. This enables:
 
-bubseek is the distribution layer: packaging, runtime defaults, plugin wiring, and builtin skills.
+1. **External observability** — Agent serves team requests, produces insights
+2. **Internal observability** — Agent's own footprint (tapes) becomes data for analysis
 
-### Python packaging
-
-Python packaging handles dependency resolution, lockfiles, and installation. Contrib packages stay in that model instead of going through a bubseek-specific workflow.
-
-## Why this split matters
-
-From a user perspective, the benefit is simple: there is less to learn.
-
-- run `bub`
-- add contrib the same way you add any Python dependency
-- use builtin skills without an extra sync step
-- treat generated marimo notebooks as runtime artifacts under `insights/`, not committed templates
-
-That keeps the distribution practical without introducing a second package-management system around Bub.
+The same agent that serves the team can also analyze its own history to understand: what questions are most frequent? What tasks fail often? What does the team care about?

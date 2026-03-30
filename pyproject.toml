@@ -1,7 +1,7 @@
 [project]
 name = "bubseek"
-version = "0.0.1"
-description = "Intelligent Perception and Explainable Analytics in Collaboration ｜ Bub & seekdb Inside"
+version = "0.1.0"
+description = "A Bub distribution for data-driven insight workflows, powered by OceanBase seekdb"
 authors = [{ name = "Chojan Shang", email = "psiace@apache.org" }]
 readme = "README.md"
 keywords = ['python']

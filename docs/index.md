@@ -1,26 +1,21 @@
 # bubseek
 
-bubseek is a Bub distribution aimed at users who want a practical default package, not a separate lifecycle to manage.
+A Bub distribution for data-driven insight workflows, powered by OceanBase seekdb.
 
-The main user path is simple:
-
-1. Install `bubseek`
-2. Run `bub`
-3. Add contrib through normal Python dependencies
-4. Keep using Bub as usual
+bubseek is an attempt to explore a different approach to enterprise data needs: instead of scheduling BI tickets, tell the agent what you want and get insights back.
 
 ## Start here
 
 | Section | What it answers |
 | --- | --- |
 | [Getting started](getting-started.md) | How do I install and run bubseek? |
-| [Configuration](configuration.md) | How do I pin Bub, add contrib, and package skills? |
-| [Architecture](architecture.md) | What does bubseek do, and what does it leave to Bub and Python packaging? |
+| [Configuration](configuration.md) | How do I configure channels, skills, and database? |
+| [Architecture](architecture.md) | What does bubseek do, and what does it leave to Bub? |
 | [Development](development.md) | How do I test, build, and work on this repo? |
-| [API reference](api-reference.md) | What Python surface does bubseek expose? |
 
 ## Quick links
 
 - [Repository](https://github.com/ob-labs/bubseek)
 - [PyPI](https://pypi.org/project/bubseek/)
 - [Bub](https://github.com/bubbuild/bub)
+- [OceanBase/seekdb](https://github.com/oceanbase/seekdb)

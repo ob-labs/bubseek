@@ -1,56 +1,12 @@
 # Configuration
 
-bubseek uses standard Python packaging metadata from `pyproject.toml`.
+## Philosophy
 
-Most users only need to care about two things:
+bubseek explores a different approach: instead of scheduling BI tickets, tell the agent what you want and get insights back. All agent interactions are stored as tapes in seekdb, creating a feedback loop where the agent can analyze its own footprint.
 
-1. which Bub version is pinned
-2. which contrib packages are installed
+## Environment variables
 
-## Pin Bub
-
-Pin Bub like a normal dependency:
-
-```toml
-[project]
-dependencies = [
-    "bub==0.3.0a1",
-]
-```
-
-## Add contrib packages
-
-Treat contrib as ordinary Python packages. For Git-hosted contrib packages, use direct references:
-
-```toml
-[project]
-dependencies = [
-    "bub==0.3.0a1",
-    "bub-codex @ git+https://github.com/bubbuild/bub-contrib.git@main#subdirectory=packages/bub-codex",
-]
-```
-
-For bubseek itself, the official distribution keeps its built-in channels and marimo support in the default dependency set:
-
-```toml
-[project]
-dependencies = [
-    "bub",
-    "bub-feishu",
-    "bub-dingtalk",
-    "bub-wechat",
-    "bub-discord",
-    "bubseek-marimo",
-]
-```
-
-Install with the normal project sync or package install: `uv sync` / `pip install .`.
-
-## Runtime credentials
-
-Bub reads `BUB_*` variables directly (see [Bub deployment](https://github.com/bubbuild/bub/blob/main/docs/deployment.md)).
-
-**Minimal OpenRouter setup:**
+### Model (required)
 
 ```dotenv
 BUB_MODEL=openrouter:qwen/qwen3-coder-next
@@ -58,67 +14,58 @@ BUB_API_KEY=sk-or-v1-...
 BUB_API_BASE=https://openrouter.ai/api/v1
 ```
 
-**Common variables:**
+### Database (required for tape storage)
+
+```dotenv
+BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://user:pass@host:port/database
+```
+
+### Channels
+
+| Channel | Environment Variables |
+| --- | --- |
+| Feishu | `BUB_FEISHU_APP_ID`, `BUB_FEISHU_APP_SECRET` |
+| DingTalk | `BUB_DINGTALK_CLIENT_ID`, `BUB_DINGTALK_CLIENT_SECRET` |
+| Discord | `BUB_DISCORD_TOKEN` |
+| Telegram | `BUB_TELEGRAM_TOKEN` (built-in via bub) |
+| WeChat | Run `uv run bub login wechat` first |
+| Marimo | `BUB_MARIMO_HOST`, `BUB_MARIMO_PORT` |
+
+### Other
 
 | Variable | Description |
 | --- | --- |
-| `BUB_MODEL` | Model ID (default: `openrouter:qwen/qwen3-coder-next`) |
-| `BUB_API_KEY` | Provider API key |
-| `BUB_API_BASE` | Provider base URL (e.g. OpenRouter) |
 | `BUB_HOME` | Data directory (default: `~/.bub`) |
-| `BUB_TELEGRAM_TOKEN` | Required for Telegram channel |
-| `BUB_TELEGRAM_ALLOW_USERS` | Comma-separated user allowlist |
-| `BUB_TELEGRAM_ALLOW_CHATS` | Comma-separated chat allowlist |
-| `BUB_SEARCH_OLLAMA_API_KEY` | Required for web.search tool (bundled) |
-| `BUB_SEARCH_OLLAMA_API_BASE` | Ollama API base (default: `https://ollama.com/api`) |
-| `BUB_FEISHU_APP_ID` | Required for Feishu channel |
-| `BUB_FEISHU_APP_SECRET` | Required for Feishu channel |
-| `BUB_DINGTALK_CLIENT_ID` | AppKey for DingTalk channel |
-| `BUB_DINGTALK_CLIENT_SECRET` | AppSecret for DingTalk channel |
-| `BUB_DINGTALK_ALLOW_USERS` | Comma-separated staff_ids, or `*` for all |
-| WeChat token file | After `bub login wechat`, credentials live under `~/.bub/wechat_token.json`; see [bub-wechat](https://github.com/bubbuild/bub-contrib/tree/main/packages/bub-wechat) |
-| `BUB_DISCORD_TOKEN` | Discord bot token; see [bub-discord](https://github.com/bubbuild/bub-contrib/tree/main/packages/bub-discord) |
-| `BUB_DISCORD_ALLOW_USERS` | Optional comma-separated allowlist (user id / username / global name) |
-| `BUB_DISCORD_ALLOW_CHANNELS` | Optional comma-separated channel id allowlist |
-| `BUB_MARIMO_HOST` | Marimo channel bind host (default: `127.0.0.1`) |
-| `BUB_MARIMO_PORT` | Marimo channel bind port (default: `2718`) |
-| `BUB_MARIMO_WORKSPACE` | Workspace for insights (default: `BUB_WORKSPACE_PATH` or `.`) |
-| `BUB_TAPESTORE_SQLALCHEMY_URL` | SQLAlchemy tape store URL (bundled) |
+| `BUB_MAX_STEPS` | Max steps per conversation |
+| `BUB_MAX_TOKENS` | Max tokens per response |
+| `BUB_SEARCH_OLLAMA_API_KEY` | For web search tool |
+| `BUB_WORKSPACE_PATH` | Workspace directory |
 
-Set `BUB_TAPESTORE_SQLALCHEMY_URL` to the full `mysql+oceanbase://...` URL before running any tapestore-backed features.
+## Add contrib packages
+
+Treat contrib as ordinary Python packages:
+
+```toml
+[project]
+dependencies = [
+    "bub-codex @ git+https://github.com/bubbuild/bub-contrib.git@main#subdirectory=packages/bub-codex",
+]
+```
+
+Then run `uv sync`.
 
 ## Builtin skills
 
-Builtin skill source files live in `src/skills/`. They are packaged into `skills/` in the wheel, which Bub already knows how to discover. Users do not need to run a separate sync command for them.
+Skills are packaged in the wheel. No extra sync step needed.
 
-bubseek also vendors skills at build time via `pdm-build-skills`; these are merged into the wheel under `skills/`:
+- `github-repo-cards` — generate repo summary cards
+- `web-search` — search the web
+- `schedule` — cron-style task scheduling
+- `friendly-python`, `piglet` — from PsiACE/skills
+- `plugin-creator` — from bub-contrib
 
-- `friendly-python` and `piglet` from [PsiACE/skills](https://github.com/PsiACE/skills)
-- `plugin-creator` from [bub-contrib/.agents/skills/plugin-creator](https://github.com/bubbuild/bub-contrib/tree/main/.agents/skills/plugin-creator)
+## Marimo dashboard
 
-The bundled marimo support provides:
-- **MarimoChannel** — inbound WebSocket for gateway; chat dashboard at `http://0.0.0.0:2718/`
-- **marimo skill** — output data insights as marimo `.py` notebooks; index of charts in `{workspace}/insights/`
-- References [marimo-team/skills](https://github.com/marimo-team/skills) marimo-notebook conventions
+Run `uv run bub gateway --enable-channel marimo`, then visit http://127.0.0.1:2718
 
-The dashboard and index are generated into `{workspace}/insights/` at runtime from one canonical template source. They should not be hand-edited inside the repository.
-
-Run `bub gateway --enable-channel marimo` to enable the marimo dashboard.
-
-## Advanced: downstream skill packaging
-
-Most users can skip this section.
-
-If you are building your own downstream Bub distribution and want to vendor remote skill repositories at build time, use `pdm-build-skills`:
-
-```toml
-[build-system]
-requires = ["pdm-backend", "pdm-build-skills>=0.1.0a3"]
-build-backend = "pdm.backend"
-
-[tool.pdm.build]
-skills = [
-    { git = "PsiACE/skills", subpath = "skills", include = ["friendly-python", "piglet"] },
-    { git = "https://github.com/example/skills.git", ref = "v1.2.3", subpath = "skills/review" },
-]
-```
+Notebooks are generated to `insights/` at runtime. The dashboard shows agent's own footprint — tapes, sessions, task history — enabling the agent to analyze itself.

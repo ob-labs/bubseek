@@ -1,16 +1,13 @@
 # Getting started
 
-This guide is for the normal user flow: install bubseek, run `bub`, and add contrib with standard Python dependencies.
+bubseek is an attempt to explore a different approach to enterprise data needs: instead of scheduling BI tickets, tell the agent what you want and get insights back.
 
 ## Prerequisites
 
 - **Python 3.12+**
 - **[uv](https://docs.astral.sh/uv/)** (recommended) or pip
-- **Git** only if one of your dependencies comes from a Git repository
 
 ## Install
-
-From the repository root:
 
 ```bash
 git clone https://github.com/ob-labs/bubseek.git
@@ -18,53 +15,42 @@ cd bubseek
 uv sync
 ```
 
-This installs `bubseek` together with `bub==0.3.0a1`.
-
-## Run Bub
-
-Use the bundled `bub` command directly:
+## Run
 
 ```bash
 uv run bub --help
 uv run bub chat
-uv run bub run ",help"
 ```
 
-Configure SeekDB or OceanBase before running `bubseek`, for example with `BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://...`.
+## Configure database
 
-## Add contrib
-
-Contrib packages are standard Python packages. Add them with normal dependency management. bubseek ships `bub-web-search`, `bub-tapestore-sqlalchemy`, `bubseek-schedule`, Feishu, DingTalk, WeChat, Discord, and Marimo support by default.
-
-**Bundled channels and tools:**
-
-- **Feishu channel**: set `BUB_FEISHU_APP_ID` / `BUB_FEISHU_APP_SECRET`, then enable it in gateway if needed.
-- **DingTalk channel**: set `BUB_DINGTALK_CLIENT_ID` / `BUB_DINGTALK_CLIENT_SECRET`, then enable it in gateway if needed.
-- **WeChat channel**: run `uv run bub login wechat`, then `uv run bub gateway --enable-channel wechat`.
-- **Discord channel**: set `BUB_DISCORD_TOKEN`, then `uv run bub gateway --enable-channel discord`.
-- **Marimo channel**: run `uv run bub gateway --enable-channel marimo`.
-
-**Add other contrib from Git:**
-
-```toml
-[project]
-dependencies = [
-    "bub==0.3.0a1",
-    "bub-codex @ git+https://github.com/bubbuild/bub-contrib.git@main#subdirectory=packages/bub-codex",
-]
-```
-
-Then refresh the environment:
+Set `BUB_TAPESTORE_SQLALCHEMY_URL` before running:
 
 ```bash
-uv sync
+export BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://user:pass@host:port/database
 ```
 
-## Builtin skills
+## Enable channels
 
-bubseek already ships its builtin skills in the wheel. For normal use, there is no separate skill sync step.
+Configure environment variables, then enable via gateway:
+
+| Channel | Environment Variables |
+| --- | --- |
+| Feishu | `BUB_FEISHU_APP_ID`, `BUB_FEISHU_APP_SECRET` |
+| DingTalk | `BUB_DINGTALK_CLIENT_ID`, `BUB_DINGTALK_CLIENT_SECRET` |
+| Discord | `BUB_DISCORD_TOKEN` |
+| Telegram | `BUB_TELEGRAM_TOKEN` (built-in via bub) |
+| Marimo | `uv run bub gateway --enable-channel marimo` |
+
+WeChat: run `uv run bub login wechat` first.
+
+## What you can do
+
+- **Data consumption** — Tell the agent what insight you want, it works with marimo notebooks in `insights/`
+- **Observability** — All agent interactions are stored as tapes in seekdb, viewable via marimo dashboard
+- **Scheduling** — Create cron-style tasks: "remind me to check data every morning"
 
 ## Next steps
 
-- [Configuration](configuration.md) — Common `pyproject.toml` patterns.
-- [Architecture](architecture.md) — Design boundaries and responsibility split.
+- [Configuration](configuration.md) — Channel credentials, skills, runtime options
+- [Architecture](architecture.md) — Design overview

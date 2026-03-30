@@ -1,6 +1,6 @@
 site_name: bubseek
 repo_url: https://github.com/ob-labs/bubseek
-site_description: Intelligent Perception and Explainable Analytics in Collaboration ｜ Bub & seekdb Inside
+site_description: A Bub distribution for data-driven insight workflows, powered by OceanBase seekdb
 edit_uri: edit/main/docs/
 repo_name: ob-labs/bubseek
 
@@ -10,7 +10,6 @@ nav:
   - Configuration: configuration.md
   - Architecture: architecture.md
   - Development: development.md
-  - API reference: api-reference.md
 plugins:
   - search
   - mkdocstrings:
