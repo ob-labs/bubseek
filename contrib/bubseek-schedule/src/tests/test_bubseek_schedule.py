@@ -11,12 +11,12 @@ def _seekdb_url() -> str:
     if not url:
         pytest.skip("BUB_TAPESTORE_SQLALCHEMY_URL is required for schedule tests")
     if "mysql" not in url and "oceanbase" not in url:
-        pytest.skip("schedule tests require a SeekDB/OceanBase URL")
+        pytest.skip("schedule tests require a seekdb/OceanBase URL")
     return url
 
 
 def test_jobstore_roundtrip():
-    """Test jobstore roundtrip via APScheduler on SeekDB/OceanBase."""
+    """Test jobstore roundtrip via APScheduler on seekdb/OceanBase."""
     from apscheduler.schedulers.background import BackgroundScheduler
 
     url = _seekdb_url()

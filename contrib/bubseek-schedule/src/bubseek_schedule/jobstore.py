@@ -1,4 +1,4 @@
-"""OceanBase/SeekDB job store for APScheduler using pyobvector dialect."""
+"""OceanBase/seekdb job store for APScheduler using pyobvector dialect."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def _normalize_url(url: str) -> str:
 
 class OceanBaseJobStore(BaseJobStore):
     """
-    A SQL-based job store for APScheduler using OceanBase/SeekDB (pyobvector).
+    A SQL-based job store for APScheduler using OceanBase/seekdb (pyobvector).
 
     Jobs are serialized with pickle and stored in a database table. Uses the same
     database as BUB_TAPESTORE_SQLALCHEMY_URL - one DB, multiple tables

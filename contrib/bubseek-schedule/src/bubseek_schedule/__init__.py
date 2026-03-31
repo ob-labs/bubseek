@@ -1,1 +1,1 @@
-"""Bubseek schedule plugin with OceanBase/SeekDB job store."""
+"""Bubseek schedule plugin with OceanBase/seekdb job store."""

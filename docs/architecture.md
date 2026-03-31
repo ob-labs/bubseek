@@ -5,7 +5,7 @@
 bubseek is an attempt to explore a different approach to enterprise data needs: instead of scheduling BI tickets, tell the agent what you want and get insights back.
 
 - Packages Bub with pre-configured dependencies
-- Provides OceanBase/SeekDB storage support via bub-tapestore-sqlalchemy
+- Provides OceanBase/seekdb storage support via bub-tapestore-sqlalchemy
 - Ships builtin channels: Feishu, DingTalk, WeChat, Discord, Telegram, Marimo
 - Ships builtin skills: github-repo-cards, web-search, schedule
 - Provides built-in observability: agent's own footprint becomes queryable data

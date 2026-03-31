@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI wrapper: ensure the configured SeekDB or OceanBase database exists."""
+"""CLI wrapper: ensure the configured seekdb or OceanBase database exists."""
 
 from __future__ import annotations
 

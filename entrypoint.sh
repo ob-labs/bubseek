@@ -2,7 +2,7 @@
 
 set -eo pipefail
 
-# When using MySQL (OceanBase/SeekDB), ensure database exists before bub starts
+# When using MySQL (OceanBase/seekdb), ensure database exists before bub starts
 if [[ "${BUB_TAPESTORE_SQLALCHEMY_URL:-}" == *mysql* ]]; then
     /app/.venv/bin/python /app/scripts/create-bub-db.py || true
 fi

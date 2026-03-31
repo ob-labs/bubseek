@@ -15,7 +15,7 @@ def default_scheduler() -> BaseScheduler:
 
 
 class ScheduleImpl:
-    """Schedule plugin: persist jobs to SeekDB via OceanBaseJobStore.
+    """Schedule plugin: persist jobs to seekdb via OceanBaseJobStore.
 
     Uses BackgroundScheduler so the scheduler can start without the ``schedule`` channel.
     ``bub chat`` only enables the ``cli`` channel; previously AsyncIOScheduler never started,

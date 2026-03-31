@@ -1,12 +1,12 @@
 # bubseek-schedule
 
-Scheduling plugin for bubseek with OceanBase/SeekDB job store.
+Scheduling plugin for bubseek with OceanBase/seekdb job store.
 
 ## What It Provides
 
 - Bub plugin entry point: `schedule`
 - A scheduler channel backed by APScheduler
-- OceanBase/SeekDB job store (pyobvector dialect)
+- OceanBase/seekdb job store (pyobvector dialect)
 - Built-in tools:
   - `schedule.add`
   - `schedule.remove`
@@ -34,10 +34,10 @@ dependencies = [
 ## Runtime Behavior
 
 - The plugin uses **APScheduler `BackgroundScheduler`** (see also upstream [bub-schedule](https://github.com/bubbuild/bub-contrib) JSON store pattern: persistence must not depend on a specific channel being enabled).
-- **`load_state` starts the scheduler** on the first inbound message. That way `bub chat` (CLI-only: only the `cli` channel is enabled) still persists jobs to SeekDB. Previously, `AsyncIOScheduler` was only started by the `schedule` channel, so CLI chat left jobs in memory-only `_pending_jobs` and **nothing was written to `apscheduler_jobs`**.
+- **`load_state` starts the scheduler** on the first inbound message. That way `bub chat` (CLI-only: only the `cli` channel is enabled) still persists jobs to seekdb. Previously, `AsyncIOScheduler` was only started by the `schedule` channel, so CLI chat left jobs in memory-only `_pending_jobs` and **nothing was written to `apscheduler_jobs`**.
 - The channel name is `schedule`. Enabling it in `bub gateway` is optional for persistence; it still starts/stops the scheduler cleanly when you use gateway with that channel.
 - Jobs are persisted to:
-  - **OceanBase/SeekDB**: Same URL as the tape store (`BUB_TAPESTORE_SQLALCHEMY_URL`), table `apscheduler_jobs`.
+  - **OceanBase/seekdb**: Same URL as the tape store (`BUB_TAPESTORE_SQLALCHEMY_URL`), table `apscheduler_jobs`.
 
 ## Provided Tools
 

@@ -8,30 +8,80 @@ bubseek explores a different approach: instead of scheduling BI tickets, tell th
 
 ### Model (required)
 
-```dotenv
-BUB_MODEL=openrouter:qwen/qwen3-coder-next
-BUB_API_KEY=sk-or-v1-...
-BUB_API_BASE=https://openrouter.ai/api/v1
-```
+See [Getting started](getting-started.md) for model configuration.
 
 ### Database (required for tape storage)
 
-```dotenv
-BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://user:pass@host:port/database
+See [Getting started](getting-started.md) for database configuration.
+
+## Channels
+
+### Feishu
+
+1. Visit [https://open.feishu.cn/app](https://open.feishu.cn/app) → Create or select app
+2. Go to "Credentials & Basic Info" → Get App ID and App Secret
+3. Configure event subscriptions and permissions as needed
+
+```bash
+export BUB_FEISHU_APP_ID=cli_xxx
+export BUB_FEISHU_APP_SECRET=xxx
+uv run bub gateway --enable-channel feishu
 ```
 
-### Channels
+### DingTalk
 
-| Channel | Environment Variables |
-| --- | --- |
-| Feishu | `BUB_FEISHU_APP_ID`, `BUB_FEISHU_APP_SECRET` |
-| DingTalk | `BUB_DINGTALK_CLIENT_ID`, `BUB_DINGTALK_CLIENT_SECRET` |
-| Discord | `BUB_DISCORD_TOKEN` |
-| Telegram | `BUB_TELEGRAM_TOKEN` (built-in via bub) |
-| WeChat | Run `uv run bub login wechat` first |
-| Marimo | `BUB_MARIMO_HOST`, `BUB_MARIMO_PORT` |
+1. Visit [https://open-dev.dingtalk.com/](https://open-dev.dingtalk.com/) → Create or select app
+2. Go to app details → Get Client ID and Client Secret
 
-### Other
+```bash
+export BUB_DINGTALK_CLIENT_ID=xxx
+export BUB_DINGTALK_CLIENT_SECRET=xxx
+uv run bub gateway --enable-channel dingtalk
+```
+
+### Discord
+
+1. Visit [https://discord.com/developers/applications](https://discord.com/developers/applications) → New Application
+2. Go to "Bot" → Add Bot
+3. Click "Reset Token" to get bot token
+4. Enable "Message Content Intent" in Bot settings
+
+```bash
+export BUB_DISCORD_TOKEN=your-bot-token
+uv run bub gateway --enable-channel discord
+```
+
+### Telegram
+
+1. Open Telegram, search @BotFather
+2. Send `/newbot` and follow instructions
+3. BotFather returns the token
+
+```bash
+export BUB_TELEGRAM_TOKEN=your-bot-token
+uv run bub gateway --enable-channel telegram
+```
+
+### WeChat
+
+Interactive login required:
+
+```bash
+uv run bub login wechat    # Scan QR code with WeChat app
+uv run bub gateway --enable-channel wechat
+```
+
+### Marimo (web dashboard)
+
+```bash
+export BUB_MARIMO_HOST=127.0.0.1  # optional
+export BUB_MARIMO_PORT=2718       # optional
+uv run bub gateway --enable-channel marimo
+```
+
+Visit http://127.0.0.1:2718 after enabling.
+
+## Other settings
 
 | Variable | Description |
 | --- | --- |

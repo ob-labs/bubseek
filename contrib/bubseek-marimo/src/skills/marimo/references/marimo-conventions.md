@@ -66,7 +66,7 @@ def _(items, mo):
 ## 7. Embedded data
 
 - For **self-contained** notebooks (e.g. Iris, demos), embed the full dataset **inside the first cell** (or in the same cell that uses it). Define any helper (e.g. `_row(...)`) in the same cell so it runs in the same isolated namespace; do not define it at module level and expect it to be visible in the cell.
-- When the notebook depends on **environment or config** (e.g. DB URL), read via **bubseek settings** where possible (e.g. `BubSeekSettings().db.resolved_tapestore_url`) so it matches the rest of the app; document required env (e.g. `BUB_TAPESTORE_SQLALCHEMY_URL`) and add dependencies (e.g. `pyobvector`) in the script block when using OceanBase/SeekDB.
+- When the notebook depends on **environment or config** (e.g. DB URL), read via **bubseek settings** where possible (e.g. `BubSeekSettings().db.resolved_tapestore_url`) so it matches the rest of the app; document required env (e.g. `BUB_TAPESTORE_SQLALCHEMY_URL`) and add dependencies (e.g. `pyobvector`) in the script block when using OceanBase/seekdb.
 
 ---
 

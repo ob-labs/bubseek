@@ -52,7 +52,7 @@ def env_with_workspace_dotenv(workspace: Path | str) -> dict[str, str]:
 
 
 class DatabaseSettings(BaseSettings):
-    """Database connection settings for tape store (OceanBase/SeekDB only)."""
+    """Database connection settings for tape store (OceanBase/seekdb only)."""
 
     model_config = _SETTINGS_CONFIG
 

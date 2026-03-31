@@ -8,10 +8,10 @@ bubseek is an attempt to explore a different approach to enterprise data needs: 
 
 | Section | What it answers |
 | --- | --- |
-| [Getting started](getting-started.md) | How do I install and run bubseek? |
-| [Configuration](configuration.md) | How do I configure channels, skills, and database? |
-| [Architecture](architecture.md) | What does bubseek do, and what does it leave to Bub? |
-| [Development](development.md) | How do I test, build, and work on this repo? |
+| [Getting started](getting-started.md) | Install, configure model/database, verify setup |
+| [Configuration](configuration.md) | Channel credentials, skills, runtime options |
+| [Architecture](architecture.md) | What bubseek does, and what it leaves to Bub |
+| [Development](development.md) | Test, build, and work on this repo |
 
 ## Quick links
 

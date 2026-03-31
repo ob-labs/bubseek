@@ -2,7 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = ["marimo", "pandas", "pyobvector", "sqlalchemy", "pymysql", "python-dotenv"]
 # ///
-"""Tape Monitor — compact SeekDB tapestore dashboard (tabs: Summary / Runs / Tokens / More).
+"""Tape Monitor — compact seekdb tapestore dashboard (tabs: Summary / Runs / Tokens / More).
 
 Tapestore URL: `bubseek.config.resolve_tapestore_url` · Marimo: `http://localhost:2718/?file=tape_monitor.py`
 """
@@ -692,7 +692,7 @@ def _(  # noqa: C901
 {theme_css}
 <div class="tm-wrap">
   <div class="tm-h1">Tape monitor</div>
-  <div class="tm-sub">SeekDB tapestore — use tabs below. Refresh reloads all queries.</div>
+  <div class="tm-sub">seekdb tapestore — use tabs below. Refresh reloads all queries.</div>
   <div class="tm-grid-kpi">
     <div class="tm-kpi"><label>Tapes</label><span class="tm-val">{total_tapes}</span></div>
     <div class="tm-kpi"><label>Entries</label><span class="tm-val">{total_entries}</span></div>

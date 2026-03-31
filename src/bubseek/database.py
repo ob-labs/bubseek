@@ -1,4 +1,4 @@
-"""Database bootstrap helpers for SeekDB/OceanBase-backed runtimes."""
+"""Database bootstrap helpers for seekdb/OceanBase-backed runtimes."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ Or run: uv run python scripts/create-bub-db.py
 
 
 def database_exists(host: str, port: int, user: str, password: str, database: str) -> bool:
-    """Return whether the configured OceanBase or SeekDB database already exists."""
+    """Return whether the configured OceanBase or seekdb database already exists."""
     import pymysql
 
     try:
@@ -40,7 +40,7 @@ def database_exists(host: str, port: int, user: str, password: str, database: st
 
 
 def create_database(host: str, port: int, user: str, password: str, database: str) -> bool:
-    """Create the configured OceanBase or SeekDB database when credentials permit."""
+    """Create the configured OceanBase or seekdb database when credentials permit."""
     import pymysql
 
     try:
@@ -73,7 +73,7 @@ def ensure_database(workspace: Path | None = None) -> None:
             return
     except Exception as exc:
         typer.echo(f"Cannot connect to {host}:{port}: {exc}", err=True)
-        typer.echo("Ensure OceanBase/SeekDB is running.", err=True)
+        typer.echo("Ensure OceanBase/seekdb is running.", err=True)
         raise typer.Exit(1) from exc
 
     hint = CREATE_DB_HINT.format(host=host, port=port, user=user, database=database).strip()

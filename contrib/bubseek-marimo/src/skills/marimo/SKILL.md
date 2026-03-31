@@ -72,7 +72,7 @@ if __name__ == "__main__":
 - **Variable names**: Must be unique across all cells (no multiple-definitions). Repeated local temporaries such as `session`, `events`, `result`, `response`, `row`, `item` should usually be underscore-prefixed inside cells (e.g. `_session`, `_events`, `_result`, `_row`) so they do not collide across cells
 - **No mid-cell return**: Do not use `return` for early exit inside a cell; use conditionals to assign a value, then a single `return (...)` at the end. Mid-cell returns can make the notebook fail to compile
 - **Reactivity**: Variables between cells define reactivity; avoid mutating across cells
-- **PEP 723**: Add `# /// script` block with dependencies at top (include `pyobvector` when using `mysql+oceanbase` / SeekDB)
+- **PEP 723**: Add `# /// script` block with dependencies at top (include `pyobvector` when using `mysql+oceanbase` / seekdb)
 - **Scanner compatibility**: notebooks opened from a marimo directory must contain the literal markers `import marimo` and `marimo.App`
 - **Directory mode**: Use `marimo run <directory> --watch` so newly generated notebooks in the folder are visible without restarting
 - **Run**: `uv run marimo run <notebook.py>` for interactive; `uv run <notebook.py>` for script mode

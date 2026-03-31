@@ -1,4 +1,4 @@
-"""Register pyobvector SQLAlchemy dialect for OceanBase/SeekDB compatibility."""
+"""Register pyobvector SQLAlchemy dialect for OceanBase/seekdb compatibility."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def _is_savepoint_not_exist(exc: BaseException) -> bool:
 class OceanBaseDialect(_OceanBaseDialect):
     """OceanBase dialect that tolerates missing savepoints.
 
-    OceanBase/SeekDB may implicitly release savepoints on errors (e.g. deadlock,
+    OceanBase/seekdb may implicitly release savepoints on errors (e.g. deadlock,
     failed DML). When SQLAlchemy later tries RELEASE SAVEPOINT or ROLLBACK TO
     SAVEPOINT, it gets (1305, 'savepoint does not exist'). We catch and ignore
     that to avoid masking the original error.
@@ -52,7 +52,7 @@ registry.register("mysql.oceanbase", "bubseek.oceanbase", "OceanBaseDialect")
 def _patch_tape_store_validate_schema() -> None:
     """Tolerate duplicate index (MySQL 1061) in bub_tapestore_sqlalchemy.
 
-    SeekDB/OceanBase introspection may not match SQLAlchemy's checkfirst, so
+    seekdb/OceanBase introspection may not match SQLAlchemy's checkfirst, so
     CREATE INDEX is attempted even when the index already exists on the table.
     """
     try:

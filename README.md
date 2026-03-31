@@ -1,6 +1,5 @@
 # bubseek
 
-[![PyPI version](https://img.shields.io/pypi/v/bubseek.svg)](https://pypi.org/project/bubseek/)
 [![License](https://img.shields.io/github/license/ob-labs/bubseek.svg)](LICENSE)
 [![CI](https://github.com/ob-labs/bubseek/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/ob-labs/bubseek/actions/workflows/main.yml?query=branch%3Amain)
 
@@ -27,11 +26,17 @@ uv sync
 uv run bub --help
 ```
 
-Configure database:
+Configure model and database, then verify:
 
 ```bash
+export BUB_MODEL=openrouter:qwen/qwen3-coder-next
+export BUB_API_KEY=sk-or-v1-your-key
+export BUB_API_BASE=https://openrouter.ai/api/v1
 export BUB_TAPESTORE_SQLALCHEMY_URL=mysql+oceanbase://user:pass@host:port/database
+uv run bub chat
 ```
+
+See [Getting started](docs/getting-started.md) for detailed setup guide.
 
 ## License
 
