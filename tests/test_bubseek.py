@@ -87,11 +87,12 @@ def test_database_settings_extract_mysql_params(monkeypatch) -> None:
     with imported_bubseek_modules("bubseek.config") as [config_mod]:
         monkeypatch.setenv(
             "BUB_TAPESTORE_SQLALCHEMY_URL",
-            "mysql+oceanbase://seek:secret@seekdb.example:2881/analytics",
+            "mysql+pymysql://seek:secret@seekdb.example:2881/analytics",
         )
 
         settings = config_mod.DatabaseSettings()
 
+    assert settings.resolved_tapestore_url == "mysql+oceanbase://seek:secret@seekdb.example:2881/analytics"
     assert settings.backend_name == "mysql"
     assert settings.mysql_connection_params() == (
         "seekdb.example",
@@ -102,7 +103,16 @@ def test_database_settings_extract_mysql_params(monkeypatch) -> None:
     )
 
 
-def test_resolve_tapestore_url_reads_workspace_env_file(tmp_path: Path) -> None:
+def test_oceanbase_registers_mysql_pymysql_alias() -> None:
+    with imported_bubseek_modules("bubseek.oceanbase") as [oceanbase_mod]:
+        from sqlalchemy.dialects import registry
+
+        dialect_cls = registry.load("mysql.oceanbase")
+
+    assert dialect_cls is oceanbase_mod.OceanBaseDialect
+
+
+def test_resolve_tapestore_url_reads_workspace_env_file(monkeypatch, tmp_path: Path) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     (workspace / ".env").write_text(
@@ -111,6 +121,7 @@ def test_resolve_tapestore_url_reads_workspace_env_file(tmp_path: Path) -> None:
     )
 
     with imported_bubseek_modules("bubseek.config") as [config_mod]:
+        monkeypatch.delenv("BUB_TAPESTORE_SQLALCHEMY_URL", raising=False)
         url = config_mod.resolve_tapestore_url(workspace=workspace)
 
     assert url == "mysql+oceanbase://workspace:secret@seekdb.example:2881/workspace_db"
@@ -133,6 +144,7 @@ def test_resolve_tapestore_url_prefers_bub_workspace_path(monkeypatch, tmp_path:
     )
 
     with imported_bubseek_modules("bubseek.config") as [config_mod]:
+        monkeypatch.delenv("BUB_TAPESTORE_SQLALCHEMY_URL", raising=False)
         monkeypatch.setenv("BUB_WORKSPACE_PATH", str(workspace))
         url = config_mod.resolve_tapestore_url(discover_from=nested)
 
@@ -149,6 +161,7 @@ def test_resolve_tapestore_url_discovers_parent_env(monkeypatch, tmp_path: Path)
     )
 
     with imported_bubseek_modules("bubseek.config") as [config_mod]:
+        monkeypatch.delenv("BUB_TAPESTORE_SQLALCHEMY_URL", raising=False)
         monkeypatch.delenv("BUB_WORKSPACE_PATH", raising=False)
         url = config_mod.resolve_tapestore_url(discover_from=nested)
 

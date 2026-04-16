@@ -16,6 +16,21 @@ _SETTINGS_CONFIG = SettingsConfigDict(
 )
 
 
+def normalize_oceanbase_url(url: str) -> str:
+    """Treat MySQL-style seekdb URLs as OceanBase URLs."""
+    normalized = url.strip()
+    lowered = normalized.lower()
+    if not lowered.startswith("mysql"):
+        return normalized
+    if lowered.startswith("mysql+oceanbase://"):
+        return normalized
+    if lowered.startswith("mysql+pymysql://"):
+        return normalized.replace("mysql+pymysql://", "mysql+oceanbase://", 1)
+    if lowered.startswith("mysql://"):
+        return normalized.replace("mysql://", "mysql+oceanbase://", 1)
+    return normalized
+
+
 def discover_project_root(start: Path | str | None = None) -> Path | None:
     """Walk up from start (default cwd) until a directory containing .env is found. Use when package runs from .venv and cwd may not be project root."""
     if start is None:
@@ -62,7 +77,7 @@ class DatabaseSettings(BaseSettings):
     @property
     def resolved_tapestore_url(self) -> str:
         """Return the explicit tape store URL."""
-        return self.tapestore_sqlalchemy_url.strip()
+        return normalize_oceanbase_url(self.tapestore_sqlalchemy_url)
 
     @property
     def backend_name(self) -> str:
