@@ -1,0 +1,24 @@
+[project]
+name = "bubseek-langchain"
+version = "0.1.0"
+description = "LangChain Runnable adapter for Bubseek"
+readme = "README.md"
+authors = [{ name = "Chojan Shang", email = "psiace@apache.org" }]
+requires-python = ">=3.12"
+dependencies = [
+    "bub",
+    "langchain-core>=0.3.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0.0",
+]
+
+[project.entry-points."bub"]
+bubseek-langchain = "bubseek_langchain.plugin:main"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm.build]
+package-dir = "src"
+includes = ["src/bubseek_langchain"]

@@ -34,6 +34,11 @@ dependencies = [
     "bubseek-marimo",
 ]
 
+[project.optional-dependencies]
+langchain = [
+    "bubseek-langchain",
+]
+
 [project.urls]
 Repository = "https://github.com/ob-labs/bubseek"
 
@@ -84,11 +89,13 @@ bub-wechat = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "ma
 bub-discord = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "main", subdirectory = "packages/bub-discord" }
 bub-web-search = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "main", subdirectory = "packages/bub-web-search" }
 bub-tapestore-sqlalchemy = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "main", subdirectory = "packages/bub-tapestore-sqlalchemy" }
+bubseek-langchain = { workspace = true }
 bubseek-schedule = { workspace = true }
 bubseek-marimo = { workspace = true }
 
 [tool.uv.workspace]
 members = [
+    "contrib/bubseek-langchain",
     "contrib/bubseek-schedule",
     "contrib/bubseek-marimo",
 ]
@@ -103,7 +110,7 @@ python-version = "3.12"
 exclude = ["references", "insights", "scripts/sitecustomize.py"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "contrib/bubseek-schedule/src/tests", "contrib/bubseek-marimo/tests"]
+testpaths = ["tests", "contrib/bubseek-langchain/tests", "contrib/bubseek-schedule/src/tests", "contrib/bubseek-marimo/tests"]
 
 [tool.ruff]
 target-version = "py312"
