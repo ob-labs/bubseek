@@ -6,7 +6,7 @@ bubseek is an attempt to explore a different approach to enterprise data needs: 
 
 - Packages Bub with pre-configured dependencies
 - Provides OceanBase/seekdb storage support via bub-tapestore-sqlalchemy
-- Ships builtin channels: Feishu, DingTalk, WeChat, Discord, Telegram, Marimo
+- Ships builtin channels: Feishu, DingTalk, WeChat, WeCom, Discord, Telegram, Marimo
 - Ships builtin skills: github-repo-cards, web-search, schedule
 - Provides built-in observability: agent's own footprint becomes queryable data
 
