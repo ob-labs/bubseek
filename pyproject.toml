@@ -26,6 +26,7 @@ dependencies = [
     "bub-feishu",
     "bub-dingtalk",
     "bub-wechat",
+    "bub-wecom",
     "bub-discord",
     "bub-web-search",
     "bub-tapestore-sqlalchemy",
@@ -81,6 +82,7 @@ bub = { git = "https://github.com/bubbuild/bub.git" }
 bub-dingtalk = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "main", subdirectory = "packages/bub-dingtalk" }
 bub-feishu = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "main", subdirectory = "packages/bub-feishu" }
 bub-wechat = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "main", subdirectory = "packages/bub-wechat" }
+bub-wecom = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "main", subdirectory = "packages/bub-wecom" }
 bub-discord = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "main", subdirectory = "packages/bub-discord" }
 bub-web-search = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "main", subdirectory = "packages/bub-web-search" }
 bub-tapestore-sqlalchemy = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "main", subdirectory = "packages/bub-tapestore-sqlalchemy" }
