@@ -45,25 +45,12 @@ Optional flags:
 
 ## Factory Contract
 
-`BUB_LANGCHAIN_FACTORY` must point to a `module:attr`.
+`BUB_LANGCHAIN_FACTORY` must point to a callable `module:attr`.
+The callable must accept a single `request: LangchainFactoryRequest` keyword argument.
+The factory must return `RunnableBinding`.
 
-The imported object may be:
-
-- a `Runnable` instance;
-- a factory callable returning a `Runnable`;
-- a factory callable returning `(runnable, invoke_input)`.
-
-If the callable accepts them, the adapter injects:
-
-- `state`
-- `session_id`
-- `workspace`
-- `tools`
-- `system_prompt`
-- `prompt`
-
-If the factory returns only a runnable, the adapter uses the Bub prompt as default invoke input.
-If you need a different input shape, derive it from `prompt` and return `(runnable, invoke_input)` explicitly.
+`RunnableBinding.invoke_input` is always explicit.
+`RunnableBinding.output_parser` is optional; if omitted, the adapter uses the default LangChain output normalizer.
 
 ## Examples
 

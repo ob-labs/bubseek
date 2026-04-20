@@ -103,6 +103,7 @@ def test_runnable_mode_echo(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
         tmp_path,
         "lc_inline_factory",
         """
+        from bubseek_langchain import RunnableBinding
         from langchain_core.runnables import RunnableLambda
 
         calls = []
@@ -111,12 +112,15 @@ def test_runnable_mode_echo(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
             calls.append((text, config))
             return f"ECHO:{text}"
 
-        def factory(*, tools, system_prompt, **kwargs):
-            assert tools == []
-            assert system_prompt == "system prompt"
-            assert kwargs["session_id"] == "session-1"
-            assert kwargs["langchain_context"].session_id == "session-1"
-            return RunnableLambda(lambda x: x, afunc=_run)
+        def factory(*, request):
+            assert request.tools == []
+            assert request.system_prompt == "system prompt"
+            assert request.session_id == "session-1"
+            assert request.langchain_context.session_id == "session-1"
+            return RunnableBinding(
+                runnable=RunnableLambda(lambda x: x, afunc=_run),
+                invoke_input=request.prompt_text,
+            )
         """,
     )
 
@@ -165,13 +169,17 @@ def test_missing_runtime_agent_without_tape(monkeypatch: pytest.MonkeyPatch, tmp
         tmp_path,
         "lc_no_tape",
         """
+        from bubseek_langchain import RunnableBinding
         from langchain_core.runnables import RunnableLambda
 
         async def _run(text):
             return f"NO_TAPE:{text}"
 
-        def factory(**kwargs):
-            return RunnableLambda(lambda x: x, afunc=_run)
+        def factory(*, request):
+            return RunnableBinding(
+                runnable=RunnableLambda(lambda x: x, afunc=_run),
+                invoke_input=request.prompt_text,
+            )
         """,
     )
 
@@ -221,6 +229,7 @@ def test_include_bub_tools_passes_registry_tools_to_factory(monkeypatch: pytest.
         tmp_path,
         "lc_with_tools",
         """
+        from bubseek_langchain import RunnableBinding
         from langchain_core.runnables import RunnableLambda
 
         seen = {}
@@ -228,11 +237,14 @@ def test_include_bub_tools_passes_registry_tools_to_factory(monkeypatch: pytest.
         async def _run(text):
             return f"TOOLS:{text}"
 
-        def factory(*, tools, **kwargs):
-            seen["tool_names"] = [tool.name for tool in tools]
-            seen["tool_count"] = len(tools)
-            seen["schemas"] = [tool.args_schema for tool in tools]
-            return RunnableLambda(lambda x: x, afunc=_run)
+        def factory(*, request):
+            seen["tool_names"] = [tool.name for tool in request.tools]
+            seen["tool_count"] = len(request.tools)
+            seen["schemas"] = [tool.args_schema for tool in request.tools]
+            return RunnableBinding(
+                runnable=RunnableLambda(lambda x: x, afunc=_run),
+                invoke_input=request.prompt_text,
+            )
         """,
     )
 
@@ -246,17 +258,18 @@ def test_include_bub_tools_passes_registry_tools_to_factory(monkeypatch: pytest.
     assert module.seen["schemas"][0]["properties"]["value"]["type"] == "string"
 
 
-def test_factory_tuple_overrides_invoke_input(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_factory_binding_overrides_invoke_input(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.syspath_prepend(str(tmp_path))
     monkeypatch.setenv("BUB_LANGCHAIN_MODE", "runnable")
-    monkeypatch.setenv("BUB_LANGCHAIN_FACTORY", "lc_tuple_factory:factory")
+    monkeypatch.setenv("BUB_LANGCHAIN_FACTORY", "lc_binding_input_factory:factory")
     monkeypatch.setenv("BUB_LANGCHAIN_INCLUDE_BUB_TOOLS", "false")
     monkeypatch.setenv("BUB_LANGCHAIN_TAPE", "false")
 
     _write_module(
         tmp_path,
-        "lc_tuple_factory",
+        "lc_binding_input_factory",
         """
+        from bubseek_langchain import RunnableBinding
         from langchain_core.runnables import RunnableLambda
 
         seen = []
@@ -265,9 +278,12 @@ def test_factory_tuple_overrides_invoke_input(monkeypatch: pytest.MonkeyPatch, t
             seen.append(value)
             return f"DICT:{value['text']}"
 
-        def factory(*, prompt, **kwargs):
-            text = "\\n".join(part["text"] for part in prompt if part.get("type") == "text")
-            return RunnableLambda(lambda x: x, afunc=_run), {"text": text, "raw": prompt}
+        def factory(*, request):
+            text = "\\n".join(part["text"] for part in request.prompt if part.get("type") == "text")
+            return RunnableBinding(
+                runnable=RunnableLambda(lambda x: x, afunc=_run),
+                invoke_input={"text": text, "raw": request.prompt},
+            )
         """,
     )
 
@@ -275,9 +291,47 @@ def test_factory_tuple_overrides_invoke_input(monkeypatch: pytest.MonkeyPatch, t
     prompt = [{"type": "text", "text": "hello"}, {"type": "image_url", "image_url": {"url": "data:image/png,..."}}]
     result = asyncio.run(plugin.run_model(prompt, session_id="session-3", state={}))
 
-    module = _import_module("lc_tuple_factory")
+    module = _import_module("lc_binding_input_factory")
     assert result == "DICT:hello"
     assert module.seen == [{"text": "hello", "raw": prompt}]
+
+
+def test_runnable_binding_makes_result_selection_explicit(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setenv("BUB_LANGCHAIN_MODE", "runnable")
+    monkeypatch.setenv("BUB_LANGCHAIN_FACTORY", "lc_binding_factory:factory")
+    monkeypatch.setenv("BUB_LANGCHAIN_INCLUDE_BUB_TOOLS", "false")
+    monkeypatch.setenv("BUB_LANGCHAIN_TAPE", "false")
+
+    _write_module(
+        tmp_path,
+        "lc_binding_factory",
+        """
+        from bubseek_langchain import RunnableBinding
+        from langchain_core.runnables import RunnableLambda
+
+        def parse_output(payload):
+            return payload["answer"]
+
+        def factory(*, request):
+            async def _run(_):
+                return {
+                    "messages": [{"content": "intermediate"}],
+                    "answer": f"BINDING:{request.prompt_text}",
+                }
+
+            return RunnableBinding(
+                runnable=RunnableLambda(lambda x: x, afunc=_run),
+                invoke_input=request.prompt_text,
+                output_parser=parse_output,
+            )
+        """,
+    )
+
+    plugin = LangchainPlugin(_Framework())
+    result = asyncio.run(plugin.run_model("hello", session_id="session-binding", state={}))
+
+    assert result == "BINDING:hello"
 
 
 def test_run_model_stream_uses_runnable_astream(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -291,14 +345,18 @@ def test_run_model_stream_uses_runnable_astream(monkeypatch: pytest.MonkeyPatch,
         tmp_path,
         "lc_stream_factory",
         """
+        from bubseek_langchain import RunnableBinding
         from langchain_core.runnables import RunnableLambda
 
         async def _stream(_text, config=None, **kwargs):
             yield "alpha"
             yield "beta"
 
-        def factory(**kwargs):
-            return RunnableLambda(lambda x: x, afunc=_stream)
+        def factory(*, request):
+            return RunnableBinding(
+                runnable=RunnableLambda(lambda x: x, afunc=_stream),
+                invoke_input=request.prompt_text,
+            )
         """,
     )
 
@@ -325,6 +383,7 @@ def test_run_model_stream_falls_back_to_ainvoke_once(monkeypatch: pytest.MonkeyP
         tmp_path,
         "lc_fallback_factory",
         """
+        from bubseek_langchain import RunnableBinding
         builds = []
         seen_configs = []
         seen_contexts = []
@@ -358,10 +417,13 @@ def test_run_model_stream_falls_back_to_ainvoke_once(monkeypatch: pytest.MonkeyP
                     )
                 return f"FALLBACK:{text}"
 
-        def factory(**kwargs):
-            builds.append(kwargs["session_id"])
-            seen_contexts.append(kwargs["langchain_context"])
-            return PlainRunnable()
+        def factory(*, request):
+            builds.append(request.session_id)
+            seen_contexts.append(request.langchain_context)
+            return RunnableBinding(
+                runnable=PlainRunnable(),
+                invoke_input=request.prompt_text,
+            )
         """,
     )
 
@@ -408,6 +470,55 @@ def test_run_model_stream_falls_back_to_ainvoke_once(monkeypatch: pytest.MonkeyP
     assert tapes.merge_back_values == [True]
 
 
+def test_run_model_stream_uses_ainvoke_when_binding_has_custom_output_parser(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setenv("BUB_LANGCHAIN_MODE", "runnable")
+    monkeypatch.setenv("BUB_LANGCHAIN_FACTORY", "lc_stream_binding:factory")
+    monkeypatch.setenv("BUB_LANGCHAIN_INCLUDE_BUB_TOOLS", "false")
+    monkeypatch.setenv("BUB_LANGCHAIN_TAPE", "false")
+
+    _write_module(
+        tmp_path,
+        "lc_stream_binding",
+        """
+        from bubseek_langchain import RunnableBinding
+
+        class StatefulRunnable:
+            def invoke(self, _input, config=None):
+                return {"answer": "SYNC"}
+
+            async def ainvoke(self, _input, config=None):
+                return {"answer": "FINAL"}
+
+            async def astream(self, _input, config=None):
+                yield {"messages": [{"content": "partial"}]}
+
+        def parse_output(payload):
+            return payload["answer"]
+
+        def factory(*, request):
+            return RunnableBinding(
+                runnable=StatefulRunnable(),
+                invoke_input=request.prompt_text,
+                output_parser=parse_output,
+            )
+        """,
+    )
+
+    plugin = LangchainPlugin(_Framework())
+    stream = asyncio.run(plugin.run_model_stream("hello", session_id="session-stream-binding", state={}))
+
+    assert stream is not None
+    events = asyncio.run(_collect_events(stream))
+    assert [(event.kind, event.data) for event in events] == [
+        ("text", {"delta": "FINAL"}),
+        ("final", {"text": "FINAL", "ok": True}),
+    ]
+
+
 def test_tape_recorder_records_tool_error() -> None:
     tape = _RecordingTape()
     handler = LangchainTapeCallbackHandler(
@@ -426,6 +537,25 @@ def test_tape_recorder_records_tool_error() -> None:
     assert entry.meta["session_id"] == "session-err"
     assert entry.meta["tape_name"] == "tape-err"
     assert entry.meta["langchain_run_id"] == "langchain-root"
+
+
+def test_tape_recorder_normalizes_tool_metadata() -> None:
+    tape = _RecordingTape()
+    handler = LangchainTapeCallbackHandler(tape, session_id="session-meta")
+
+    asyncio.run(
+        handler.on_tool_start(
+            {"name": "meta.tool"},
+            "{}",
+            run_id="run-1",
+            metadata={"message": SimpleNamespace(content="hello")},
+        )
+    )
+
+    assert len(tape.entries) == 1
+    entry = tape.entries[0]
+    assert entry.kind == "tool_call"
+    assert entry.meta["metadata"] == {"message": "hello"}
 
 
 async def _collect_events(stream) -> list[RepublicStreamEvent]:

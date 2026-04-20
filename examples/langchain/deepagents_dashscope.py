@@ -5,7 +5,7 @@ import os
 from functools import wraps
 from typing import Any
 
-from bubseek_langchain.bridge import LangchainRunContext, extract_prompt_text
+from bubseek_langchain.bridge import LangchainFactoryRequest, LangchainRunContext, RunnableBinding
 from loguru import logger
 
 DEFAULT_DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
@@ -90,34 +90,39 @@ def _build_weather_tool(bound_logger: Any):
     return logged_weather
 
 
+def _extract_agent_reply(state: dict[str, Any]) -> str:
+    messages = state.get("messages")
+    if not isinstance(messages, list) or not messages:
+        return ""
+    return str(messages[-1].content)
+
+
 def dashscope_deep_agent(
     *,
-    tools: list[Any] | None = None,
-    system_prompt: str = "",
-    prompt: str | list[dict[str, Any]],
-    langchain_context: LangchainRunContext | None = None,
-    **_: Any,
-) -> tuple[Any, dict[str, list[dict[str, str]]]]:
+    request: LangchainFactoryRequest,
+) -> RunnableBinding:
     """Build a DeepAgents runnable backed by DashScope's OpenAI-compatible API."""
 
     from deepagents import create_deep_agent
-    from langchain_core.runnables import RunnableLambda
 
-    bound_logger = _bind_logger(langchain_context)
-    prompt_text = extract_prompt_text(prompt)
+    bound_logger = _bind_logger(request.langchain_context)
+    prompt_text = request.prompt_text
     bound_logger.info(
         "Building DeepAgents DashScope runnable tool_count={} prompt_chars={}",
-        len(tools or []),
+        len(request.tools),
         len(prompt_text),
     )
 
     agent = create_deep_agent(
         model=_build_chat_model(bound_logger),
-        tools=[_build_weather_tool(bound_logger), *(tools or [])],
-        system_prompt=system_prompt or "You are a helpful assistant",
+        tools=[_build_weather_tool(bound_logger), *request.tools],
+        system_prompt=request.system_prompt or "You are a helpful assistant",
     )
-    bound_logger.info("Created DeepAgents agent bubbled_tools={}", len(tools or []))
-    runnable = agent | RunnableLambda(lambda state: state["messages"][-1].content)
+    bound_logger.info("Created DeepAgents agent bubbled_tools={}", len(request.tools))
     invoke_input = {"messages": [{"role": "user", "content": prompt_text}]}
     bound_logger.debug("Prepared DeepAgents invoke input message_count={}", len(invoke_input["messages"]))
-    return runnable, invoke_input
+    return RunnableBinding(
+        runnable=agent,
+        invoke_input=invoke_input,
+        output_parser=_extract_agent_reply,
+    )

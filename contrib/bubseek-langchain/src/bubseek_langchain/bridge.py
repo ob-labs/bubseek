@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from bub.types import State
+
+OutputParser = Callable[[Any], str]
 
 
 @dataclass(frozen=True)
@@ -36,6 +39,28 @@ class LangchainRunContext:
         return tags
 
 
+@dataclass(frozen=True)
+class LangchainFactoryRequest:
+    state: State
+    session_id: str
+    workspace: Path
+    tools: list[Any]
+    system_prompt: str
+    prompt: str | list[dict[str, Any]]
+    langchain_context: LangchainRunContext
+
+    @property
+    def prompt_text(self) -> str:
+        return extract_prompt_text(self.prompt)
+
+
+@dataclass(frozen=True)
+class RunnableBinding:
+    runnable: Any
+    invoke_input: Any
+    output_parser: OutputParser | None = None
+
+
 def extract_prompt_text(prompt: str | list[dict[str, Any]]) -> str:
     if isinstance(prompt, str):
         return prompt
@@ -50,27 +75,6 @@ def extract_prompt_text(prompt: str | list[dict[str, Any]]) -> str:
         if isinstance(text, str) and text.strip():
             texts.append(text)
     return "\n".join(texts).strip()
-
-
-def build_factory_kwargs(
-    *,
-    state: State,
-    session_id: str,
-    workspace: Path,
-    tools: list[Any],
-    system_prompt: str,
-    prompt: str | list[dict[str, Any]],
-    langchain_context: LangchainRunContext,
-) -> dict[str, Any]:
-    return {
-        "state": state,
-        "session_id": session_id,
-        "workspace": workspace,
-        "tools": tools,
-        "system_prompt": system_prompt,
-        "prompt": prompt,
-        "langchain_context": langchain_context,
-    }
 
 
 def build_runnable_config(

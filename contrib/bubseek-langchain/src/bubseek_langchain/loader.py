@@ -1,67 +1,82 @@
 from __future__ import annotations
 
 import inspect
+from dataclasses import replace
 from importlib import import_module
 from typing import Any
+
+from .bridge import LangchainFactoryRequest, RunnableBinding
+from .errors import LangchainConfigError
+from .normalize import normalize_langchain_output
+
+
+def _factory_error(factory: str, message: str) -> LangchainConfigError:
+    return LangchainConfigError(f"{message} (BUB_LANGCHAIN_FACTORY={factory!r})")
 
 
 def import_object(spec: str) -> Any:
     if ":" not in spec:
-        raise ValueError(f"Expected 'module:attr', got {spec!r}")
+        raise _factory_error(spec, "Expected 'module:attr'")
     module_name, attr_name = spec.split(":", 1)
-    module = import_module(module_name)
+    try:
+        module = import_module(module_name)
+    except Exception as exc:
+        raise _factory_error(spec, f"Failed to import module {module_name!r}: {exc}") from exc
     try:
         return getattr(module, attr_name)
     except AttributeError as exc:
-        raise AttributeError(f"Attribute {attr_name!r} not found in module {module_name!r}") from exc
+        raise _factory_error(spec, f"Attribute {attr_name!r} not found in module {module_name!r}") from exc
 
 
 def _is_runnable_like(obj: object) -> bool:
     return hasattr(obj, "invoke") and hasattr(obj, "ainvoke")
 
 
-def _call_with_supported_kwargs(factory: Any, factory_kwargs: dict[str, Any]) -> Any:
-    signature = inspect.signature(factory)
+def _is_factory_callable(obj: object) -> bool:
+    return callable(obj) and not _is_runnable_like(obj) and not isinstance(obj, RunnableBinding)
+
+
+def _ensure_request_factory(factory: Any, *, factory_spec: str) -> None:
+    try:
+        signature = inspect.signature(factory)
+    except (TypeError, ValueError):
+        return
     parameters = signature.parameters
-    if any(parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in parameters.values()):
-        return factory(**factory_kwargs)
-    supported_kwargs = {name: value for name, value in factory_kwargs.items() if name in parameters}
-    return factory(**supported_kwargs)
+    request_parameter = parameters.get("request")
+    if request_parameter is None:
+        raise _factory_error(factory_spec, "Factory must accept a `request` keyword argument")
+    if request_parameter.kind not in (
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        inspect.Parameter.KEYWORD_ONLY,
+    ):
+        raise _factory_error(factory_spec, "Factory `request` parameter must accept keyword binding")
 
 
-def ensure_runnable(obj: Any) -> Any:
+def ensure_runnable(obj: Any, *, factory: str) -> Any:
     if not _is_runnable_like(obj):
-        raise TypeError(f"Expected a Runnable with invoke/ainvoke, got {type(obj)!r}")
+        raise _factory_error(factory, f"Expected a Runnable with invoke/ainvoke, got {type(obj)!r}")
     return obj
 
 
-def _normalize_factory_result(
-    value: Any,
-    *,
-    factory: str,
-    factory_kwargs: dict[str, Any],
-    default_input: Any,
-) -> tuple[Any, Any]:
-    if _is_runnable_like(value):
-        return ensure_runnable(value), default_input
-    if isinstance(value, tuple) and len(value) == 2:
-        runnable, invoke_input = value
-        return ensure_runnable(runnable), invoke_input
-    if callable(value):
-        return _normalize_factory_result(
-            _call_with_supported_kwargs(value, factory_kwargs),
-            factory=factory,
-            factory_kwargs=factory_kwargs,
-            default_input=default_input,
-        )
-    raise TypeError(f"Object from {factory!r} is neither Runnable, callable, nor (Runnable, input)")
+def _normalize_factory_result(value: Any, *, factory: str) -> RunnableBinding:
+    if not isinstance(value, RunnableBinding):
+        raise _factory_error(factory, "Factory must return RunnableBinding")
+
+    ensure_runnable(value.runnable, factory=factory)
+
+    if value.output_parser is None:
+        return replace(value, output_parser=normalize_langchain_output)
+
+    if not callable(value.output_parser):
+        raise _factory_error(factory, f"Expected output parser to be callable, got {type(value.output_parser)!r}")
+
+    return value
 
 
-def resolve_runnable_and_input(factory: str, factory_kwargs: dict[str, Any], default_input: Any) -> tuple[Any, Any]:
-    obj = import_object(factory)
-    return _normalize_factory_result(
-        obj,
-        factory=factory,
-        factory_kwargs=factory_kwargs,
-        default_input=default_input,
-    )
+def resolve_runnable_binding(factory: str, request: LangchainFactoryRequest) -> RunnableBinding:
+    imported = import_object(factory)
+    if not _is_factory_callable(imported):
+        raise _factory_error(factory, "BUB_LANGCHAIN_FACTORY must point to a callable factory")
+    _ensure_request_factory(imported, factory_spec=factory)
+    value = imported(request=request)
+    return _normalize_factory_result(value, factory=factory)

@@ -3,11 +3,12 @@ from __future__ import annotations
 import asyncio
 import sys
 from collections.abc import Callable, Sequence
+from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
-from bubseek_langchain.bridge import LangchainRunContext
+from bubseek_langchain.bridge import LangchainFactoryRequest, LangchainRunContext
 from bubseek_langchain.plugin import LangchainPlugin
 
 pytest.importorskip("deepagents")
@@ -113,6 +114,7 @@ def test_run_model_with_deepagents_factory(monkeypatch: pytest.MonkeyPatch) -> N
 def test_dashscope_deep_agent_binds_logger_context(monkeypatch: pytest.MonkeyPatch) -> None:
     from types import SimpleNamespace
 
+    from langchain_core.messages import AIMessage
     from langchain_core.runnables import RunnableLambda
 
     from examples.langchain import deepagents_dashscope
@@ -152,11 +154,17 @@ def test_dashscope_deep_agent_binds_logger_context(monkeypatch: pytest.MonkeyPat
         tape_name="tape-deepagents",
         run_id="langchain-root",
     )
-    runnable, invoke_input = deepagents_dashscope.dashscope_deep_agent(
+    request = LangchainFactoryRequest(
+        state={},
+        session_id="session-deepagents",
+        workspace=Path("."),
         tools=[],
         system_prompt="system prompt",
         prompt="hello deepagents",
         langchain_context=context,
+    )
+    binding = deepagents_dashscope.dashscope_deep_agent(
+        request=request,
     )
 
     assert captured["bind"] == {
@@ -166,8 +174,10 @@ def test_dashscope_deep_agent_binds_logger_context(monkeypatch: pytest.MonkeyPat
     }
     assert captured["model"] == "fake-chat-model"
     assert captured["system_prompt"] == "system prompt"
-    assert invoke_input == {"messages": [{"role": "user", "content": "hello deepagents"}]}
-    assert runnable.invoke(invoke_input) == "hello deepagents"
+    assert binding.invoke_input == {"messages": [{"role": "user", "content": "hello deepagents"}]}
+    assert binding.runnable.invoke(binding.invoke_input)["messages"][-1].content == "hello deepagents"
+    assert binding.output_parser is not None
+    assert binding.output_parser({"messages": [AIMessage(content="hello deepagents")]}) == "hello deepagents"
     weather_tool = captured["tools"][0]
     assert weather_tool("Shanghai") == "It's always sunny in Shanghai!"
     assert any(

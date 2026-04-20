@@ -9,22 +9,41 @@ from bub.tools import REGISTRY
 from langchain_core.utils.json_schema import dereference_refs
 from republic import Tool, ToolContext
 
+from .errors import LangchainConfigError
 
-def _sanitize_model_name(name: str) -> str:
+
+def _sanitize_tool_name(name: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_]", "_", name)
 
 
-def _args_schema_from_parameters(parameters: dict[str, Any]) -> dict[str, Any]:
-    if not isinstance(parameters, dict) or not parameters:
-        return {"type": "object", "properties": {}, "additionalProperties": False}
+def _empty_args_schema() -> dict[str, Any]:
+    return {"type": "object", "properties": {}, "additionalProperties": False}
 
-    if parameters.get("type") != "object":
-        return {"type": "object", "properties": {}, "additionalProperties": False}
+
+def _args_schema_from_parameters(tool_name: str, parameters: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(parameters, dict):
+        if parameters is None:
+            return _empty_args_schema()
+        raise LangchainConfigError(f"Tool {tool_name!r} parameters must be a JSON schema object")
+
+    if not parameters:
+        return _empty_args_schema()
 
     schema = _normalize_json_schema(parameters)
+    schema_type = schema.get("type")
+    if schema_type not in (None, "object"):
+        raise LangchainConfigError(f"Tool {tool_name!r} parameters must use an object schema, got {schema_type!r}")
+
+    if schema_type is None:
+        schema["type"] = "object"
+
     properties = schema.get("properties")
-    if not isinstance(properties, dict):
+    if properties is None:
         schema["properties"] = {}
+    elif not isinstance(properties, dict):
+        raise LangchainConfigError(f"Tool {tool_name!r} parameters.properties must be a mapping")
+
+    schema.setdefault("additionalProperties", False)
     return schema
 
 
@@ -58,23 +77,45 @@ def _normalize_json_schema(parameters: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
-def bub_tool_to_langchain(bub_tool: Tool, *, tool_context: ToolContext) -> Any:
+def _build_tool_call_kwargs(
+    *,
+    bub_tool: Tool,
+    tool_context: ToolContext,
+    kwargs: dict[str, Any],
+) -> dict[str, Any]:
+    call_kwargs = dict(kwargs)
+    if bub_tool.context:
+        call_kwargs["context"] = tool_context
+    return call_kwargs
+
+
+def _run_bub_tool(
+    *,
+    bub_tool: Tool,
+    tool_context: ToolContext,
+    kwargs: dict[str, Any],
+) -> Any:
+    return bub_tool.run(**_build_tool_call_kwargs(bub_tool=bub_tool, tool_context=tool_context, kwargs=kwargs))
+
+
+def bub_tool_to_langchain(
+    bub_tool: Tool,
+    *,
+    tool_context: ToolContext,
+    tool_name: str | None = None,
+) -> Any:
     from langchain_core.tools import StructuredTool
 
+    langchain_name = tool_name or _sanitize_tool_name(bub_tool.name)
+
     async def _async_call(**kwargs: Any) -> Any:
-        call_kwargs = dict(kwargs)
-        if bub_tool.context:
-            call_kwargs["context"] = tool_context
-        result = bub_tool.run(**call_kwargs)
+        result = _run_bub_tool(bub_tool=bub_tool, tool_context=tool_context, kwargs=kwargs)
         if inspect.isawaitable(result):
             result = await result
         return result
 
     def _sync_call(**kwargs: Any) -> Any:
-        call_kwargs = dict(kwargs)
-        if bub_tool.context:
-            call_kwargs["context"] = tool_context
-        result = bub_tool.run(**call_kwargs)
+        result = _run_bub_tool(bub_tool=bub_tool, tool_context=tool_context, kwargs=kwargs)
         if inspect.isawaitable(result):
             raise TypeError(f"Tool {bub_tool.name!r} returned awaitable in sync path")
         return result
@@ -82,9 +123,9 @@ def bub_tool_to_langchain(bub_tool: Tool, *, tool_context: ToolContext) -> Any:
     return StructuredTool.from_function(
         func=_sync_call,
         coroutine=_async_call,
-        name=_sanitize_model_name(bub_tool.name),
+        name=langchain_name,
         description=bub_tool.description or bub_tool.name,
-        args_schema=_args_schema_from_parameters(bub_tool.parameters),
+        args_schema=_args_schema_from_parameters(bub_tool.name, bub_tool.parameters),
     )
 
 
@@ -94,8 +135,15 @@ def bub_registry_to_langchain_tools(
     include_names: set[str] | None = None,
 ) -> list[Any]:
     results: list[Any] = []
+    seen_names: dict[str, str] = {}
     for name, bub_tool in REGISTRY.items():
         if include_names is not None and name not in include_names:
             continue
-        results.append(bub_tool_to_langchain(bub_tool, tool_context=tool_context))
+        langchain_name = _sanitize_tool_name(bub_tool.name)
+        if existing_name := seen_names.get(langchain_name):
+            raise LangchainConfigError(
+                f"Tools {existing_name!r} and {bub_tool.name!r} map to the same LangChain name {langchain_name!r}"
+            )
+        seen_names[langchain_name] = bub_tool.name
+        results.append(bub_tool_to_langchain(bub_tool, tool_context=tool_context, tool_name=langchain_name))
     return results

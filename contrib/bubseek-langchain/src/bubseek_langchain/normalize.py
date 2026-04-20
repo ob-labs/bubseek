@@ -3,6 +3,16 @@ from __future__ import annotations
 import json
 from typing import Any
 
+PREFERRED_TEXT_KEYS = (
+    "output",
+    "answer",
+    "result",
+    "final",
+    "response",
+    "message",
+    "text",
+)
+
 
 def _content_to_str(content: Any) -> str:
     if content is None:
@@ -29,9 +39,14 @@ def _message_to_str(message: Any) -> str:
 def _dict_to_str(data: dict[str, Any]) -> str:
     if "content" in data:
         return _content_to_str(data["content"])
+    for key in PREFERRED_TEXT_KEYS:
+        if key in data:
+            return normalize_langchain_output(data[key])
     if isinstance(data.get("messages"), list):
-        parts = [normalize_langchain_output(item) for item in data["messages"]]
-        return "\n".join(part for part in parts if part)
+        messages = data["messages"]
+        if not messages:
+            return ""
+        return normalize_langchain_output(messages[-1])
     return json.dumps(data, ensure_ascii=False, default=str)
 
 

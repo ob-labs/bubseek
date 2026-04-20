@@ -21,4 +21,14 @@ def test_normalize_dict_messages() -> None:
             {"content": [{"text": "beta"}]},
         ]
     }
-    assert normalize_langchain_output(payload) == "alpha\nbeta"
+    assert normalize_langchain_output(payload) == "beta"
+
+
+def test_normalize_prefers_output_keys_before_dumping_json() -> None:
+    payload = {
+        "answer": {
+            "content": "final answer",
+        },
+        "messages": [{"content": "intermediate"}],
+    }
+    assert normalize_langchain_output(payload) == "final answer"

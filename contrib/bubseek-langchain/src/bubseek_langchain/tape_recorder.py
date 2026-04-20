@@ -39,6 +39,23 @@ class LangchainTapeCallbackHandler(AsyncCallbackHandler):
         entry_meta.update({key: value for key, value in meta.items() if value is not None})
         return entry_meta
 
+    def _run_meta(
+        self,
+        *,
+        run_id: Any,
+        parent_run_id: Any | None = None,
+        tags: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        **extra: Any,
+    ) -> dict[str, Any]:
+        return self._entry_meta(
+            run_id=str(run_id),
+            parent_run_id=str(parent_run_id) if parent_run_id is not None else None,
+            tags=list(tags) if tags else None,
+            metadata=self._jsonable(metadata) if metadata else None,
+            **extra,
+        )
+
     async def _append_event(
         self,
         name: str,
@@ -86,16 +103,65 @@ class LangchainTapeCallbackHandler(AsyncCallbackHandler):
         tags: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        event_data = dict(data or {})
-        if tags:
-            event_data["tags"] = list(tags)
-        if metadata:
-            event_data["metadata"] = self._jsonable(metadata)
         await self._append_event(
             name,
-            data=event_data or None,
-            run_id=str(run_id),
-            parent_run_id=str(parent_run_id) if parent_run_id is not None else None,
+            data=data or None,
+            **self._run_meta(
+                run_id=run_id,
+                parent_run_id=parent_run_id,
+                tags=tags,
+                metadata=metadata,
+            ),
+        )
+
+    async def _append_tool_call(
+        self,
+        *,
+        name: str,
+        input_str: str,
+        run_id: Any,
+        parent_run_id: Any | None = None,
+        tags: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        await self._tape.append_async(
+            TapeEntry.tool_call(
+                calls=[
+                    {
+                        "id": str(run_id),
+                        "type": "function",
+                        "function": {
+                            "name": name,
+                            "arguments": input_str or "{}",
+                        },
+                    }
+                ],
+                **self._run_meta(
+                    run_id=run_id,
+                    parent_run_id=parent_run_id,
+                    tags=tags,
+                    metadata=metadata,
+                ),
+            )
+        )
+
+    async def _append_tool_result(
+        self,
+        *,
+        result: Any,
+        run_id: Any,
+        parent_run_id: Any | None = None,
+        tags: list[str] | None = None,
+    ) -> None:
+        await self._tape.append_async(
+            TapeEntry.tool_result(
+                results=[result],
+                **self._run_meta(
+                    run_id=run_id,
+                    parent_run_id=parent_run_id,
+                    tags=tags,
+                ),
+            )
         )
 
     async def on_tool_start(
@@ -110,25 +176,13 @@ class LangchainTapeCallbackHandler(AsyncCallbackHandler):
         **_: Any,
     ) -> None:
         name = self._serialized_name(serialized)
-        await self._tape.append_async(
-            TapeEntry.tool_call(
-                calls=[
-                    {
-                        "id": str(run_id),
-                        "type": "function",
-                        "function": {
-                            "name": str(name),
-                            "arguments": input_str or "{}",
-                        },
-                    }
-                ],
-                **self._entry_meta(
-                    parent_run_id=str(parent_run_id) if parent_run_id is not None else None,
-                    run_id=str(run_id),
-                    tags=tags,
-                    metadata=metadata,
-                ),
-            )
+        await self._append_tool_call(
+            name=name,
+            input_str=input_str,
+            run_id=run_id,
+            parent_run_id=parent_run_id,
+            tags=tags,
+            metadata=metadata,
         )
 
     async def on_tool_end(
@@ -140,15 +194,11 @@ class LangchainTapeCallbackHandler(AsyncCallbackHandler):
         tags: list[str] | None = None,
         **_: Any,
     ) -> None:
-        await self._tape.append_async(
-            TapeEntry.tool_result(
-                results=[normalize_langchain_output(output)],
-                **self._entry_meta(
-                    run_id=str(run_id),
-                    parent_run_id=str(parent_run_id) if parent_run_id is not None else None,
-                    tags=tags,
-                ),
-            )
+        await self._append_tool_result(
+            result=normalize_langchain_output(output),
+            run_id=run_id,
+            parent_run_id=parent_run_id,
+            tags=tags,
         )
 
     async def on_tool_error(
@@ -160,15 +210,11 @@ class LangchainTapeCallbackHandler(AsyncCallbackHandler):
         tags: list[str] | None = None,
         **_: Any,
     ) -> None:
-        await self._tape.append_async(
-            TapeEntry.tool_result(
-                results=[{"error": str(error)}],
-                **self._entry_meta(
-                    run_id=str(run_id),
-                    parent_run_id=str(parent_run_id) if parent_run_id is not None else None,
-                    tags=tags,
-                ),
-            )
+        await self._append_tool_result(
+            result={"error": str(error)},
+            run_id=run_id,
+            parent_run_id=parent_run_id,
+            tags=tags,
         )
 
     async def on_chain_start(

@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import asyncio
 
-from bubseek_langchain.tools import bub_tool_to_langchain
+import bubseek_langchain.tools as langchain_tools_module
+import pytest
+from bubseek_langchain.errors import LangchainConfigError
+from bubseek_langchain.tools import bub_registry_to_langchain_tools, bub_tool_to_langchain
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from republic import Tool, ToolContext
 
@@ -130,3 +133,44 @@ def test_bub_tool_to_langchain_normalizes_nested_defs_schema() -> None:
     media_schema = openai_tool["function"]["parameters"]["properties"]["message"]["properties"]["media"]["anyOf"][0]
     assert media_schema["properties"]["media_type"]["enum"] == ["image", "video", "file"]
     assert media_schema["properties"]["file_path"]["type"] == "string"
+
+
+def test_bub_tool_to_langchain_rejects_non_object_schema() -> None:
+    bub_tool = Tool(
+        name="bad-schema",
+        description="Bad schema tool",
+        parameters={"type": "array", "items": {"type": "string"}},
+        handler=lambda **kwargs: kwargs,
+    )
+
+    with pytest.raises(LangchainConfigError, match="object schema"):
+        bub_tool_to_langchain(
+            bub_tool,
+            tool_context=ToolContext(tape=None, run_id="run-1", state={}),
+        )
+
+
+def test_bub_registry_to_langchain_tools_rejects_name_collisions(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        langchain_tools_module,
+        "REGISTRY",
+        {
+            "a-b": Tool(
+                name="a-b",
+                description="First",
+                parameters={},
+                handler=lambda **kwargs: kwargs,
+            ),
+            "a_b": Tool(
+                name="a_b",
+                description="Second",
+                parameters={},
+                handler=lambda **kwargs: kwargs,
+            ),
+        },
+    )
+
+    with pytest.raises(LangchainConfigError, match="same LangChain name"):
+        bub_registry_to_langchain_tools(
+            tool_context=ToolContext(tape=None, run_id="run-1", state={}),
+        )

@@ -3,6 +3,8 @@
 These are repository-level factories for `bubseek-langchain`.
 
 They are loaded through `BUB_LANGCHAIN_FACTORY`, not imported from the plugin package itself.
+Each factory returns `RunnableBinding`.
+Each factory accepts `request: LangchainFactoryRequest`.
 
 ## Prerequisites
 
