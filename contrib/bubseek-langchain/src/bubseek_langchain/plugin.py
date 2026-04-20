@@ -7,9 +7,10 @@ from uuid import uuid4
 from bub.hookspecs import hookimpl
 from bub.types import State
 from bub.utils import workspace_from_state
+from loguru import logger
 from republic import AsyncStreamEvents, StreamEvent, StreamState, TapeEntry, ToolContext
 
-from .bridge import build_factory_kwargs, extract_prompt_text
+from .bridge import LangchainRunContext, build_factory_kwargs, build_runnable_config, extract_prompt_text
 from .config import is_enabled, load_settings, validate_config
 from .loader import resolve_runnable_and_input
 from .normalize import normalize_langchain_output
@@ -26,16 +27,49 @@ class LangchainPlugin:
     def _runtime_agent_from_state(self, state: State) -> Any | None:
         return state.get("_runtime_agent")
 
-    def _build_langchain_tools(self, *, state: State, tape_name: str | None) -> tuple[list[Any], ToolContext]:
-        tool_context = ToolContext(
-            tape=tape_name,
-            run_id=f"langchain-{uuid4().hex}",
-            state=dict(state),
-        )
+    def _build_langchain_tools(
+        self,
+        *,
+        state: State,
+        session_id: str,
+        tape_name: str | None,
+    ) -> tuple[list[Any], LangchainRunContext]:
+        run_context = LangchainRunContext(session_id=session_id, tape_name=tape_name, run_id=f"langchain-{uuid4().hex}")
         settings = load_settings()
         if not settings.include_bub_tools:
-            return [], tool_context
-        return bub_registry_to_langchain_tools(tool_context=tool_context), tool_context
+            return [], run_context
+        tool_context = ToolContext(
+            tape=tape_name,
+            run_id=run_context.run_id,
+            state=dict(state),
+        )
+        return bub_registry_to_langchain_tools(tool_context=tool_context), run_context
+
+    def _bind_logger(self, run_context: LangchainRunContext):
+        return logger.bind(**run_context.as_logger_extra())
+
+    def _build_callbacks(
+        self,
+        *,
+        settings: Any,
+        session_tape: Any | None,
+        run_context: LangchainRunContext,
+    ) -> list[Any]:
+        if not settings.tape or session_tape is None:
+            return []
+        return [
+            LangchainTapeCallbackHandler(
+                session_tape,
+                session_id=run_context.session_id,
+                tape_name=run_context.tape_name,
+                root_run_id=run_context.run_id,
+            )
+        ]
+
+    def _build_invoke_kwargs(self, *, run_context: LangchainRunContext, callbacks: list[Any]) -> dict[str, Any]:
+        return {
+            "config": build_runnable_config(langchain_context=run_context, callbacks=callbacks),
+        }
 
     def _system_prompt(self, prompt: str | list[dict[str, Any]], state: State) -> str:
         return self.framework.get_system_prompt(prompt, state)
@@ -52,9 +86,13 @@ class LangchainPlugin:
         session_id: str,
         state: State,
         tape_name: str | None,
-    ) -> tuple[Any, Any]:
+    ) -> tuple[Any, Any, LangchainRunContext]:
         settings = load_settings()
-        langchain_tools, _ = self._build_langchain_tools(state=state, tape_name=tape_name)
+        langchain_tools, run_context = self._build_langchain_tools(
+            state=state,
+            session_id=session_id,
+            tape_name=tape_name,
+        )
         factory_kwargs = build_factory_kwargs(
             state=state,
             session_id=session_id,
@@ -62,12 +100,17 @@ class LangchainPlugin:
             tools=langchain_tools,
             system_prompt=self._system_prompt(prompt, state),
             prompt=prompt,
+            langchain_context=run_context,
         )
-        return resolve_runnable_and_input(
+        bound_logger = self._bind_logger(run_context)
+        bound_logger.debug("Resolving LangChain runnable factory={}", settings.factory)
+        runnable, invoke_input = resolve_runnable_and_input(
             cast(str, settings.factory),
             factory_kwargs,
             self._build_invoke_input(prompt),
         )
+        bound_logger.debug("Resolved LangChain runnable")
+        return runnable, invoke_input, run_context
 
     async def _invoke_runnable(
         self,
@@ -80,23 +123,24 @@ class LangchainPlugin:
     ) -> str:
         settings = load_settings()
         prompt_text = extract_prompt_text(prompt)
-        runnable, invoke_input = self._resolve_runnable_and_input(
+        runnable, invoke_input, run_context = self._resolve_runnable_and_input(
             prompt=prompt,
             session_id=session_id,
             state=state,
             tape_name=tape_name,
         )
+        bound_logger = self._bind_logger(run_context)
         callbacks: list[Any] = []
-        if settings.tape and session_tape is not None:
-            callbacks.append(LangchainTapeCallbackHandler(session_tape))
+        callbacks = self._build_callbacks(settings=settings, session_tape=session_tape, run_context=run_context)
+        if callbacks and session_tape is not None:
             await session_tape.append_async(TapeEntry.message({"role": "user", "content": prompt_text}))
 
-        invoke_kwargs: dict[str, Any] = {}
-        if callbacks:
-            invoke_kwargs["config"] = {"callbacks": callbacks}
+        invoke_kwargs = self._build_invoke_kwargs(run_context=run_context, callbacks=callbacks)
 
+        bound_logger.debug("Invoking LangChain runnable")
         output = await runnable.ainvoke(invoke_input, **invoke_kwargs)
         normalized = normalize_langchain_output(output)
+        bound_logger.debug("LangChain runnable completed")
 
         if settings.tape and session_tape is not None:
             await session_tape.append_async(TapeEntry.message({"role": "assistant", "content": normalized}))
@@ -123,27 +167,24 @@ class LangchainPlugin:
     ) -> AsyncStreamEvents:
         settings = load_settings()
         prompt_text = extract_prompt_text(prompt)
-        runnable, invoke_input = self._resolve_runnable_and_input(
+        runnable, invoke_input, run_context = self._resolve_runnable_and_input(
             prompt=prompt,
             session_id=session_id,
             state=state,
             tape_name=tape_name,
         )
+        bound_logger = self._bind_logger(run_context)
 
-        callbacks: list[Any] = []
-        if settings.tape and session_tape is not None:
-            callbacks.append(LangchainTapeCallbackHandler(session_tape))
-
-        invoke_kwargs: dict[str, Any] = {}
-        if callbacks:
-            invoke_kwargs["config"] = {"callbacks": callbacks}
+        callbacks = self._build_callbacks(settings=settings, session_tape=session_tape, run_context=run_context)
+        invoke_kwargs = self._build_invoke_kwargs(run_context=run_context, callbacks=callbacks)
 
         async def iterator():
             assistant_parts: list[str] = []
-            if settings.tape and session_tape is not None:
+            if callbacks and session_tape is not None:
                 await session_tape.append_async(TapeEntry.message({"role": "user", "content": prompt_text}))
             astream = getattr(runnable, "astream", None)
             if callable(astream):
+                bound_logger.debug("Streaming LangChain runnable")
                 async for chunk in astream(invoke_input, **invoke_kwargs):
                     text = normalize_langchain_output(chunk)
                     if not text:
@@ -151,6 +192,7 @@ class LangchainPlugin:
                     assistant_parts.append(text)
                     yield StreamEvent("text", {"delta": text})
             else:
+                bound_logger.debug("LangChain runnable has no astream; falling back to ainvoke")
                 text = await self._ainvoke_resolved_runnable(
                     runnable=runnable,
                     invoke_input=invoke_input,
@@ -160,7 +202,8 @@ class LangchainPlugin:
                 yield StreamEvent("text", {"delta": text})
 
             final_text = "".join(assistant_parts)
-            if settings.tape and session_tape is not None:
+            bound_logger.debug("LangChain stream completed")
+            if callbacks and session_tape is not None:
                 await session_tape.append_async(TapeEntry.message({"role": "assistant", "content": final_text}))
             yield StreamEvent("final", {"text": final_text, "ok": True})
 

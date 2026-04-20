@@ -64,7 +64,7 @@ def _import_module(module_name: str):
 
 
 def test_disabled_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("BUB_LANGCHAIN_MODE", raising=False)
+    monkeypatch.setenv("BUB_LANGCHAIN_MODE", "")
     plugin = LangchainPlugin(_Framework())
 
     result = asyncio.run(plugin.run_model("hello", session_id="session-1", state={}))
@@ -84,7 +84,7 @@ def test_comma_command_skips(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_runnable_missing_factory_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("BUB_LANGCHAIN_MODE", "runnable")
-    monkeypatch.delenv("BUB_LANGCHAIN_FACTORY", raising=False)
+    monkeypatch.setenv("BUB_LANGCHAIN_FACTORY", "")
     plugin = LangchainPlugin(_Framework())
 
     with pytest.raises(ValueError, match="BUB_LANGCHAIN_FACTORY"):
@@ -114,6 +114,7 @@ def test_runnable_mode_echo(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
             assert tools == []
             assert system_prompt == "system prompt"
             assert kwargs["session_id"] == "session-1"
+            assert kwargs["langchain_context"].session_id == "session-1"
             return RunnableLambda(lambda x: x, afunc=_run)
         """,
     )
@@ -139,8 +140,15 @@ def test_runnable_mode_echo(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     assert isinstance(config, dict)
     callbacks = config["callbacks"]
     assert isinstance(callbacks, AsyncCallbackManager)
-    assert len(tape.entries) == 2
-    assert [entry.kind for entry in tape.entries] == ["message", "message"]
+    assert config["metadata"]["session_id"] == "session-1"
+    assert config["metadata"]["tape_name"] == "tape-x"
+    assert "bubseek-langchain" in config["tags"]
+    assert len(tape.entries) == 4
+    assert [entry.kind for entry in tape.entries] == ["message", "event", "event", "message"]
+    assert [entry.payload.get("name") for entry in tape.entries if entry.kind == "event"] == [
+        "langchain.chain.start",
+        "langchain.chain.end",
+    ]
     assert tapes.ensure_bootstrap_calls == 1
     assert tapes.merge_back_values == [True]
 
@@ -253,6 +261,7 @@ def test_run_model_stream_falls_back_to_ainvoke_once(monkeypatch: pytest.MonkeyP
         """
         builds = []
         seen_configs = []
+        seen_contexts = []
 
         class PlainRunnable:
             def invoke(self, text, config=None):
@@ -262,17 +271,30 @@ def test_run_model_stream_falls_back_to_ainvoke_once(monkeypatch: pytest.MonkeyP
                 seen_configs.append(config)
                 callbacks = (config or {}).get("callbacks", [])
                 for callback in callbacks:
+                    await callback.on_chain_start(
+                        {"name": "deep_agent"},
+                        {"input": text},
+                        run_id="chain-1",
+                    )
+                for callback in callbacks:
                     await callback.on_tool_start(
                         {"name": "plain_tool"},
                         '{"text": "%s"}' % text,
                         run_id="tool-1",
+                        parent_run_id="chain-1",
                     )
                 for callback in callbacks:
-                    await callback.on_tool_end({"ok": text}, run_id="tool-1")
+                    await callback.on_tool_end({"ok": text}, run_id="tool-1", parent_run_id="chain-1")
+                for callback in callbacks:
+                    await callback.on_chain_end(
+                        {"output": text},
+                        run_id="chain-1",
+                    )
                 return f"FALLBACK:{text}"
 
         def factory(**kwargs):
             builds.append(kwargs["session_id"])
+            seen_contexts.append(kwargs["langchain_context"])
             return PlainRunnable()
         """,
     )
@@ -299,15 +321,35 @@ def test_run_model_stream_falls_back_to_ainvoke_once(monkeypatch: pytest.MonkeyP
         ("final", {"text": "FALLBACK:hello", "ok": True}),
     ]
     assert module.builds == ["session-5"]
+    assert module.seen_contexts[0].session_id == "session-5"
     assert len(module.seen_configs) == 1
-    assert [entry.kind for entry in tape.entries] == ["message", "tool_call", "tool_result", "message"]
+    assert [entry.kind for entry in tape.entries] == [
+        "message",
+        "event",
+        "tool_call",
+        "tool_result",
+        "event",
+        "message",
+    ]
+    assert [entry.payload.get("name") for entry in tape.entries if entry.kind == "event"] == [
+        "langchain.chain.start",
+        "langchain.chain.end",
+    ]
+    assert all(entry.meta["session_id"] == "session-5" for entry in tape.entries[1:5])
+    assert all(entry.meta["tape_name"] == "tape-x" for entry in tape.entries[1:5])
+    assert module.seen_configs[0]["metadata"]["langchain_run_id"].startswith("langchain-")
     assert tapes.ensure_bootstrap_calls == 1
     assert tapes.merge_back_values == [True]
 
 
 def test_tape_recorder_records_tool_error() -> None:
     tape = _RecordingTape()
-    handler = LangchainTapeCallbackHandler(tape)
+    handler = LangchainTapeCallbackHandler(
+        tape,
+        session_id="session-err",
+        tape_name="tape-err",
+        root_run_id="langchain-root",
+    )
 
     asyncio.run(handler.on_tool_error(RuntimeError("boom"), run_id="run-1"))
 
@@ -315,6 +357,9 @@ def test_tape_recorder_records_tool_error() -> None:
     entry = tape.entries[0]
     assert entry.kind == "tool_result"
     assert entry.payload["results"] == [{"error": "boom"}]
+    assert entry.meta["session_id"] == "session-err"
+    assert entry.meta["tape_name"] == "tape-err"
+    assert entry.meta["langchain_run_id"] == "langchain-root"
 
 
 async def _collect_events(stream) -> list[RepublicStreamEvent]:

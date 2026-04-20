@@ -53,9 +53,17 @@ Enable it:
 ```bash
 export BUB_LANGCHAIN_MODE=runnable
 export BUB_LANGCHAIN_FACTORY=examples.langchain.deepagents_dashscope:dashscope_deep_agent
-export BUB_MODEL=glm-5.1
+export BUB_MODEL=openai:glm-5.1
 export BUB_API_KEY=your-dashscope-api-key
 export BUB_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
+```
+
+Optional explicit overrides for the example:
+
+```bash
+export BUB_DEEPAGENTS_MODEL=glm-5.1
+export BUB_DEEPAGENTS_API_KEY=your-dashscope-api-key
+export BUB_DEEPAGENTS_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
 ```
 
 Run it:
