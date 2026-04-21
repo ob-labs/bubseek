@@ -5,7 +5,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from bubseek_langchain.agent_protocol import AgentProtocolRunnable, AgentProtocolSettings
+from bubseek_langchain.agent_protocol import (
+    AgentProtocolInterruptedError,
+    AgentProtocolRemoteError,
+    AgentProtocolRunnable,
+    AgentProtocolSettings,
+)
 from bubseek_langchain.bridge import LangchainRunContext
 from langchain_core.runnables import Runnable
 
@@ -97,6 +102,25 @@ def test_ainvoke_passes_dict_input_through() -> None:
     assert fake_client.runs.wait_calls[0]["if_not_exists"] is None
 
 
+def test_ainvoke_merges_config_metadata() -> None:
+    fake_client = _FakeClient(wait_response={"ok": True}, stream_parts=[])
+    runnable = AgentProtocolRunnable(
+        settings=AgentProtocolSettings(url="http://remote", agent_id="agent", stateful=False),
+        session_id=None,
+        langchain_context=_run_context(),
+    )
+    runnable._client = fake_client
+
+    asyncio.run(runnable.ainvoke("hello", config={"metadata": {"source": "test"}}))
+
+    assert fake_client.runs.wait_calls[0]["metadata"] == {
+        "session_id": "session-1",
+        "langchain_run_id": "langchain-run-1",
+        "tape_name": "tape-x",
+        "source": "test",
+    }
+
+
 def test_astream_yields_assistant_message_chunks() -> None:
     fake_client = _FakeClient(
         wait_response=None,
@@ -120,8 +144,30 @@ def test_astream_yields_assistant_message_chunks() -> None:
     chunks = asyncio.run(_collect())
 
     assert chunks == ["Hel", "lo"]
-    assert fake_client.runs.stream_calls[0]["stream_mode"] == ["messages", "values"]
+    assert fake_client.runs.stream_calls[0]["stream_mode"] == ["messages", "values", "updates"]
     assert "version" not in fake_client.runs.stream_calls[0]
+
+
+def test_astream_does_not_duplicate_complete_message_after_partials() -> None:
+    fake_client = _FakeClient(
+        wait_response=None,
+        stream_parts=[
+            {"event": "messages/partial", "data": [{"type": "ai", "content": "Hel"}]},
+            {"event": "messages/partial", "data": [{"type": "ai", "content": "lo"}]},
+            {"event": "messages/complete", "data": [{"type": "ai", "content": "Hello"}]},
+        ],
+    )
+    runnable = AgentProtocolRunnable(
+        settings=AgentProtocolSettings(url="http://remote", agent_id="agent", stateful=False),
+        session_id=None,
+        langchain_context=_run_context(),
+    )
+    runnable._client = fake_client
+
+    async def _collect() -> list[str]:
+        return [chunk async for chunk in runnable.astream("hello")]
+
+    assert asyncio.run(_collect()) == ["Hel", "lo"]
 
 
 def test_astream_falls_back_to_final_state_when_no_message_chunks() -> None:
@@ -146,13 +192,55 @@ def test_astream_falls_back_to_final_state_when_no_message_chunks() -> None:
     assert chunks == ["Final answer"]
 
 
+def test_astream_raises_on_remote_error_event() -> None:
+    fake_client = _FakeClient(
+        wait_response=None,
+        stream_parts=[
+            {"event": "error", "data": {"message": "boom"}},
+        ],
+    )
+    runnable = AgentProtocolRunnable(
+        settings=AgentProtocolSettings(url="http://remote", agent_id="agent", stateful=False),
+        session_id=None,
+        langchain_context=_run_context(),
+    )
+    runnable._client = fake_client
+
+    async def _collect() -> list[str]:
+        return [chunk async for chunk in runnable.astream("hello")]
+
+    with pytest.raises(AgentProtocolRemoteError, match="boom"):
+        asyncio.run(_collect())
+
+
+def test_astream_raises_on_interrupt_update_event() -> None:
+    fake_client = _FakeClient(
+        wait_response=None,
+        stream_parts=[
+            {"event": "updates", "data": {"__interrupt__": [{"value": "wait"}]}},
+        ],
+    )
+    runnable = AgentProtocolRunnable(
+        settings=AgentProtocolSettings(url="http://remote", agent_id="agent", stateful=False),
+        session_id=None,
+        langchain_context=_run_context(),
+    )
+    runnable._client = fake_client
+
+    async def _collect() -> list[str]:
+        return [chunk async for chunk in runnable.astream("hello")]
+
+    with pytest.raises(AgentProtocolInterruptedError, match="interrupted"):
+        asyncio.run(_collect())
+
+
 def test_remote_example_factory_uses_prompt_and_request_context(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     from bubseek_langchain.bridge import LangchainFactoryRequest
 
-    from examples.langchain.remote_agent_protocol import remote_agent_protocol_agent
+    from examples.langchain.remote_agent_protocol import _parse_remote_agent_output, remote_agent_protocol_agent
 
     monkeypatch.setenv("BUB_AGENT_PROTOCOL_URL", "http://remote")
     monkeypatch.setenv("BUB_AGENT_PROTOCOL_AGENT_ID", "agent")
@@ -171,3 +259,15 @@ def test_remote_example_factory_uses_prompt_and_request_context(
 
     assert binding.invoke_input == request.prompt
     assert isinstance(binding.runnable, AgentProtocolRunnable)
+    assert binding.output_parser is _parse_remote_agent_output
+
+
+def test_remote_output_parser_extracts_visible_text_blocks() -> None:
+    from examples.langchain.remote_agent_protocol import _parse_remote_agent_output
+
+    payload = (
+        '[{"signature":"","thinking":"internal","type":"thinking"},'
+        '{"text":"Visible answer","type":"text"}]'
+    )
+
+    assert _parse_remote_agent_output(payload) == "Visible answer"

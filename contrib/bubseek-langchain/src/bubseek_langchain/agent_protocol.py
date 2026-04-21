@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
@@ -11,6 +12,8 @@ from loguru import logger
 from .bridge import LangchainRunContext, extract_prompt_text
 from .config import AgentProtocolSettings
 from .normalize import normalize_langchain_output
+
+INTERRUPT_KEY = "__interrupt__"
 
 
 def _bind_logger(run_context: LangchainRunContext | None):
@@ -34,39 +37,95 @@ def _is_assistant_message(message: Mapping[str, Any]) -> bool:
     return role in {"assistant", "ai", "aimessage", "aimessagechunk"}
 
 
-def _messages_from_stream_part(part: Any) -> list[Mapping[str, Any]]:
-    if hasattr(part, "event") and hasattr(part, "data"):
+def _stream_event_name(part: Any) -> str | None:
+    if hasattr(part, "event"):
         event = part.event
-        data = part.data
-        if event == "messages" and isinstance(data, list) and data:
-            first = data[0]
-            return [first] if isinstance(first, Mapping) else []
-        if event in {"messages/partial", "messages/complete"} and isinstance(data, list):
-            return [item for item in data if isinstance(item, Mapping)]
-        return []
-
-    if not isinstance(part, dict):
-        return []
-    part_type = part.get("type") or part.get("event")
-    data = part.get("data")
-    if part_type == "messages" and isinstance(data, list) and data:
-        first = data[0]
-        return [first] if isinstance(first, Mapping) else []
-    if part_type in {"messages/partial", "messages/complete"} and isinstance(data, list):
-        return [item for item in data if isinstance(item, Mapping)]
-    return []
+        return event if isinstance(event, str) else None
+    if isinstance(part, dict):
+        event = part.get("event") or part.get("type")
+        return event if isinstance(event, str) else None
+    return None
 
 
-def _final_state_from_stream_part(part: Any) -> Any | None:
-    if hasattr(part, "event") and hasattr(part, "data"):
-        return part.data if part.event == "values" else None
-    if isinstance(part, dict) and (part.get("type") == "values" or part.get("event") == "values"):
+def _stream_event_data(part: Any) -> Any:
+    if hasattr(part, "data"):
+        return part.data
+    if isinstance(part, dict):
         return part.get("data")
     return None
 
 
+def _interrupts_from_stream_part(part: Any) -> list[Any]:
+    if isinstance(part, dict):
+        interrupts = part.get("interrupts")
+        if isinstance(interrupts, list) and interrupts:
+            return interrupts
+
+    data = _stream_event_data(part)
+    if isinstance(data, Mapping):
+        interrupts = data.get(INTERRUPT_KEY)
+        if isinstance(interrupts, list) and interrupts:
+            return interrupts
+    return []
+
+
+def _raise_for_stream_part(part: Any) -> None:
+    event = _stream_event_name(part)
+    if event is None:
+        return
+
+    if event.startswith("error"):
+        detail = normalize_langchain_output(_stream_event_data(part))
+        message = detail or "Remote agent-protocol run failed"
+        raise AgentProtocolRemoteError(message)
+
+    interrupts = _interrupts_from_stream_part(part)
+    if interrupts and (event == "values" or event.startswith("updates")):
+        raise AgentProtocolInterruptedError(
+            f"Remote agent-protocol run interrupted: {json.dumps(interrupts, ensure_ascii=False, default=str)}"
+        )
+
+
+def _messages_from_stream_part(part: Any) -> tuple[str | None, list[Mapping[str, Any]]]:
+    event = _stream_event_name(part)
+    data = _stream_event_data(part)
+    if event is None:
+        return None, []
+
+    if event == "messages" and isinstance(data, list) and data:
+        first = data[0]
+        if isinstance(first, Mapping):
+            return event, [first]
+        return event, []
+
+    if event in {"messages/partial", "messages/complete"} and isinstance(data, list):
+        return event, [item for item in data if isinstance(item, Mapping)]
+
+    return event, []
+
+
+def _text_from_message(message: Mapping[str, Any]) -> str:
+    return normalize_langchain_output(dict(message))
+
+
+def _final_state_from_stream_part(part: Any) -> Any | None:
+    return _stream_event_data(part) if _stream_event_name(part) == "values" else None
+
+
+class AgentProtocolRemoteError(RuntimeError):
+    """Raised when the remote agent-protocol run returns an explicit error event."""
+
+
+class AgentProtocolInterruptedError(RuntimeError):
+    """Raised when the remote agent-protocol run reports an interrupt."""
+
+
 class AgentProtocolRunnable(Runnable[Any, Any]):
-    """Wrap a remote agent-protocol server as a LangChain-compatible Runnable."""
+    """Wrap a remote Bub agent-protocol endpoint as a Bub-oriented Runnable.
+
+    This adapter intentionally accepts Bub prompt shapes or a fully-formed input
+    dict. It does not implement general Pregel or RemoteGraph config semantics.
+    """
 
     def __init__(
         self,
@@ -91,7 +150,7 @@ class AgentProtocolRunnable(Runnable[Any, Any]):
     async def ainvoke(self, value: Any, config: dict[str, Any] | None = None, **kwargs: Any) -> Any:
         thread_id = await self._resolve_thread_id()
         run_input = self._build_run_input(value)
-        metadata = self._build_metadata()
+        metadata = self._build_metadata(config)
         self._logger.debug(
             "Invoking remote agent-protocol agent={} stateful={} thread_id={}",
             self._settings.agent_id,
@@ -109,7 +168,7 @@ class AgentProtocolRunnable(Runnable[Any, Any]):
     async def astream(self, value: Any, config: dict[str, Any] | None = None, **kwargs: Any) -> AsyncIterator[str]:
         thread_id = await self._resolve_thread_id()
         run_input = self._build_run_input(value)
-        metadata = self._build_metadata()
+        metadata = self._build_metadata(config)
         self._logger.debug(
             "Streaming remote agent-protocol agent={} stateful={} thread_id={}",
             self._settings.agent_id,
@@ -117,6 +176,7 @@ class AgentProtocolRunnable(Runnable[Any, Any]):
             thread_id,
         )
         emitted = False
+        saw_partial_message = False
         final_state: Any | None = None
         async for part in self._client_instance().runs.stream(
             thread_id=thread_id,
@@ -124,16 +184,24 @@ class AgentProtocolRunnable(Runnable[Any, Any]):
             input=run_input,
             metadata=metadata,
             if_not_exists="create" if thread_id is not None else None,
-            stream_mode=["messages", "values"],
+            stream_mode=["messages", "values", "updates"],
         ):
+            _raise_for_stream_part(part)
+
             maybe_final_state = _final_state_from_stream_part(part)
             if maybe_final_state is not None:
                 final_state = maybe_final_state
 
-            for message in _messages_from_stream_part(part):
+            event, messages = _messages_from_stream_part(part)
+            if event == "messages/partial":
+                saw_partial_message = True
+            if event == "messages/complete" and saw_partial_message:
+                continue
+
+            for message in messages:
                 if not _is_assistant_message(message):
                     continue
-                text = normalize_langchain_output(dict(message))
+                text = _text_from_message(message)
                 if not text:
                     continue
                 emitted = True
@@ -160,10 +228,22 @@ class AgentProtocolRunnable(Runnable[Any, Any]):
         prompt_text = extract_prompt_text(value) if isinstance(value, str | list) else normalize_langchain_output(value)
         return {"messages": [{"role": "user", "content": prompt_text}]}
 
-    def _build_metadata(self) -> dict[str, str]:
-        if self._langchain_context is None:
-            return {}
-        return self._langchain_context.as_metadata()
+    def _build_metadata(self, config: Mapping[str, Any] | None) -> dict[str, Any]:
+        metadata: dict[str, Any] = {}
+        if self._langchain_context is not None:
+            metadata.update(self._langchain_context.as_metadata())
+
+        if not isinstance(config, Mapping):
+            return metadata
+
+        config_metadata = config.get("metadata")
+        if not isinstance(config_metadata, Mapping):
+            return metadata
+
+        for key, value in config_metadata.items():
+            if isinstance(key, str):
+                metadata[key] = value
+        return metadata
 
     async def _resolve_thread_id(self) -> str | None:
         if not self._settings.stateful or not self._session_id:
