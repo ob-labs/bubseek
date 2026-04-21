@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal, cast
 
 from pydantic import AliasChoices, Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -47,7 +47,8 @@ def load_settings() -> LangchainPluginSettings:
 
 def load_agent_protocol_settings() -> AgentProtocolSettings:
     try:
-        return AgentProtocolSettings()
+        settings_cls = cast(Any, AgentProtocolSettings)
+        return cast(AgentProtocolSettings, settings_cls())
     except ValidationError as exc:
         raise LangchainConfigError(str(exc)) from exc
 

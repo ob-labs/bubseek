@@ -6,7 +6,7 @@ import json
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableConfig
 from loguru import logger
 
 from .bridge import LangchainRunContext, extract_prompt_text
@@ -140,16 +140,16 @@ class AgentProtocolRunnable(Runnable[Any, Any]):
         self._logger = _bind_logger(langchain_context)
         self._client: Any | None = None
 
-    def invoke(self, value: Any, config: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+    def invoke(self, input: Any, config: RunnableConfig | None = None, **kwargs: Any) -> Any:  # noqa: A002
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            return asyncio.run(self.ainvoke(value, config=config, **kwargs))
+            return asyncio.run(self.ainvoke(input, config=config, **kwargs))
         raise RuntimeError("AgentProtocolRunnable.invoke cannot be used from a running event loop; use ainvoke instead")
 
-    async def ainvoke(self, value: Any, config: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+    async def ainvoke(self, input: Any, config: RunnableConfig | None = None, **kwargs: Any) -> Any:  # noqa: A002
         thread_id = await self._resolve_thread_id()
-        run_input = self._build_run_input(value)
+        run_input = self._build_run_input(input)
         metadata = self._build_metadata(config)
         self._logger.debug(
             "Invoking remote agent-protocol agent={} stateful={} thread_id={}",
@@ -165,9 +165,14 @@ class AgentProtocolRunnable(Runnable[Any, Any]):
             if_not_exists="create" if thread_id is not None else None,
         )
 
-    async def astream(self, value: Any, config: dict[str, Any] | None = None, **kwargs: Any) -> AsyncIterator[str]:
+    async def astream(
+        self,
+        input: Any,  # noqa: A002
+        config: RunnableConfig | None = None,
+        **kwargs: Any | None,
+    ) -> AsyncIterator[str]:
         thread_id = await self._resolve_thread_id()
-        run_input = self._build_run_input(value)
+        run_input = self._build_run_input(input)
         metadata = self._build_metadata(config)
         self._logger.debug(
             "Streaming remote agent-protocol agent={} stateful={} thread_id={}",

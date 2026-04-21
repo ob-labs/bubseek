@@ -265,9 +265,6 @@ def test_remote_example_factory_uses_prompt_and_request_context(
 def test_remote_output_parser_extracts_visible_text_blocks() -> None:
     from examples.langchain.remote_agent_protocol import _parse_remote_agent_output
 
-    payload = (
-        '[{"signature":"","thinking":"internal","type":"thinking"},'
-        '{"text":"Visible answer","type":"text"}]'
-    )
+    payload = '[{"signature":"","thinking":"internal","type":"thinking"},{"text":"Visible answer","type":"text"}]'
 
     assert _parse_remote_agent_output(payload) == "Visible answer"
