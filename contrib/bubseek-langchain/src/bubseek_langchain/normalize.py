@@ -45,8 +45,12 @@ def _dict_to_str(data: dict[str, Any]) -> str:
     if isinstance(data.get("messages"), list):
         messages = data["messages"]
         if not messages:
+            if "values" in data:
+                return normalize_langchain_output(data["values"])
             return ""
         return normalize_langchain_output(messages[-1])
+    if "values" in data:
+        return normalize_langchain_output(data["values"])
     return json.dumps(data, ensure_ascii=False, default=str)
 
 

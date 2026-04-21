@@ -495,6 +495,7 @@ source = { editable = "contrib/bubseek-langchain" }
 dependencies = [
     { name = "bub" },
     { name = "langchain-core" },
+    { name = "langgraph-sdk" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
@@ -511,6 +512,7 @@ requires-dist = [
     { name = "deepagents", marker = "extra == 'deepagents'", specifier = ">=0.5.3" },
     { name = "langchain-core", specifier = ">=0.3.0" },
     { name = "langchain-openai", marker = "extra == 'deepagents'", specifier = ">=0.3.0" },
+    { name = "langgraph-sdk", specifier = ">=0.3.13" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
 ]

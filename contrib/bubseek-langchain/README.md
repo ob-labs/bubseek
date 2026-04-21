@@ -6,6 +6,7 @@ Current scope:
 
 - only `Runnable` mode is supported;
 - Bub tools can be bridged into LangChain tools;
+- remote agent-protocol services can be wrapped through `langgraph-sdk`;
 - Bub tape recording still works for user / assistant turns and tool spans;
 - prompts starting with `,` still fall through to Bub built-in internal commands.
 
@@ -58,6 +59,7 @@ Repository examples live under [examples/langchain/README.md](/home/shangzhuoran
 
 - [examples/langchain/minimal_runnable.py](/home/shangzhuoran.szr/oceanbase/bubseek/examples/langchain/minimal_runnable.py)
 - [examples/langchain/deepagents_dashscope.py](/home/shangzhuoran.szr/oceanbase/bubseek/examples/langchain/deepagents_dashscope.py)
+- [examples/langchain/remote_agent_protocol.py](/home/shangzhuoran.szr/oceanbase/bubseek/examples/langchain/remote_agent_protocol.py)
 
 Typical minimal run:
 
@@ -65,4 +67,14 @@ Typical minimal run:
 export BUB_LANGCHAIN_MODE=runnable
 export BUB_LANGCHAIN_FACTORY=examples.langchain.minimal_runnable:minimal_lc_agent
 uv run bub run "Summarize this workspace in one sentence."
+```
+
+Typical remote agent-protocol run:
+
+```bash
+export BUB_LANGCHAIN_MODE=runnable
+export BUB_LANGCHAIN_FACTORY=examples.langchain.remote_agent_protocol:remote_agent_protocol_agent
+export BUB_AGENT_PROTOCOL_URL=http://localhost:2024
+export BUB_AGENT_PROTOCOL_AGENT_ID=agent
+uv run bub chat
 ```
