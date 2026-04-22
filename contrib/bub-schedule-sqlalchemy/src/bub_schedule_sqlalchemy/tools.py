@@ -1,7 +1,9 @@
+import inspect
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
+from apscheduler.job import Job
 from apscheduler.jobstores.base import ConflictingIdError, JobLookupError
 from apscheduler.schedulers.base import BaseScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -11,13 +13,35 @@ from bub import tool
 from pydantic import BaseModel, Field
 from republic import ToolContext
 
-from bubseek_schedule.jobs import run_scheduled_reminder
+from bub_schedule_sqlalchemy.jobs import run_scheduled_reminder
+
+MISSING_SCHEDULER_MESSAGE = "scheduler not found in state, is ScheduleImpl plugin loaded?"
+MISSING_TRIGGER_ARGUMENTS_MESSAGE = "One of after_seconds, interval_seconds, or cron must be set"
 
 
 def _ensure_scheduler(state: dict) -> BaseScheduler:
     if "scheduler" not in state:
-        raise RuntimeError("scheduler not found in state, is ScheduleImpl plugin loaded?")
+        raise RuntimeError(MISSING_SCHEDULER_MESSAGE)
     return cast(BaseScheduler, state["scheduler"])
+
+
+def _format_next_run(next_run_time: object) -> str:
+    if isinstance(next_run_time, datetime):
+        return next_run_time.isoformat()
+    return "-"
+
+
+def _get_job_or_raise(scheduler: BaseScheduler, job_id: str) -> Job:
+    job = scheduler.get_job(job_id)
+    if job is None:
+        raise RuntimeError(f"job not found: {job_id}")
+    return job
+
+
+async def _run_job_now(job: Job) -> None:
+    result = job.func(*(job.args or ()), **(job.kwargs or {}))
+    if inspect.isawaitable(result):
+        await result
 
 
 class ScheduleAddInput(BaseModel):
@@ -47,7 +71,7 @@ def schedule_add(params: ScheduleAddInput, context: ToolContext) -> str:
         except ValueError as exc:
             raise RuntimeError(f"invalid cron expression: {params.cron}") from exc
     else:
-        raise RuntimeError("One of after_seconds, interval_seconds, or cron must be set")
+        raise RuntimeError(MISSING_TRIGGER_ARGUMENTS_MESSAGE)
     scheduler = _ensure_scheduler(context.state)
     workspace = context.state.get("_runtime_workspace")
     try:
@@ -66,11 +90,7 @@ def schedule_add(params: ScheduleAddInput, context: ToolContext) -> str:
     except ConflictingIdError as exc:
         raise RuntimeError(f"job id already exists: {job_id}") from exc
 
-    next_run = "-"
-    nrt = getattr(job, "next_run_time", None)
-    if isinstance(nrt, datetime):
-        next_run = nrt.isoformat()
-    return f"scheduled: {job.id} next={next_run}"
+    return f"scheduled: {job.id} next={_format_next_run(getattr(job, 'next_run_time', None))}"
 
 
 @tool(name="schedule.remove", context=True)
@@ -91,17 +111,23 @@ def schedule_list(context: ToolContext) -> str:
     jobs = scheduler.get_jobs()
     rows: list[str] = []
     for job in jobs:
-        next_run = "-"
-        nrt = getattr(job, "next_run_time", None)
-        if isinstance(nrt, datetime):
-            next_run = nrt.isoformat()
         message = str(job.kwargs.get("message", ""))
         job_session = job.kwargs.get("session_id")
         if job_session and job_session != context.state.get("session_id", ""):
             continue
-        rows.append(f"{job.id} next={next_run} msg={message}")
+        rows.append(f"{job.id} next={_format_next_run(getattr(job, 'next_run_time', None))} msg={message}")
 
     if not rows:
         return "(no scheduled jobs)"
 
     return "\n".join(rows)
+
+
+@tool(name="schedule.trigger", context=True)
+async def schedule_trigger(job_id: str, context: ToolContext) -> str:
+    """Run an existing scheduled job immediately without changing its schedule."""
+    scheduler = _ensure_scheduler(context.state)
+    job = _get_job_or_raise(scheduler, job_id)
+    await _run_job_now(job)
+
+    return f"triggered: {job_id} (next scheduled run: {_format_next_run(job.next_run_time)})"

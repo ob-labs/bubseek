@@ -30,7 +30,7 @@ dependencies = [
     "bub-tapestore-sqlalchemy",
     "bub-mcp",
     "pyobvector>=0.2.26",
-    "bubseek-schedule",
+    "bub-schedule-sqlalchemy",
     "bubseek-marimo",
 ]
 
@@ -44,8 +44,8 @@ langchain = [
 [project.urls]
 Repository = "https://github.com/ob-labs/bubseek"
 
-[project.entry-points."bub"]
-oceanbase-dialect = "bubseek.oceanbase:register"
+[project.entry-points."sqlalchemy.dialects"]
+"mysql.oceanbase" = "bubseek.oceanbase:OceanBaseDialect"
 
 [dependency-groups]
 dev = [
@@ -96,13 +96,13 @@ bub-web-search = { git = "https://github.com/bubbuild/bub-contrib.git", branch =
 bub-tapestore-sqlalchemy = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "main", subdirectory = "packages/bub-tapestore-sqlalchemy" }
 bub-mcp  = { git = "https://github.com/bubbuild/bub-contrib.git", branch = "main", subdirectory = "packages/bub-mcp" }
 bubseek-langchain = { workspace = true }
-bubseek-schedule = { workspace = true }
+bub-schedule-sqlalchemy = { workspace = true }
 bubseek-marimo = { workspace = true }
 
 [tool.uv.workspace]
 members = [
     "contrib/bubseek-langchain",
-    "contrib/bubseek-schedule",
+    "contrib/bub-schedule-sqlalchemy",
     "contrib/bubseek-marimo",
 ]
 
@@ -116,7 +116,7 @@ python-version = "3.12"
 exclude = ["references", "insights", "scripts/sitecustomize.py"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "contrib/bubseek-langchain/tests", "contrib/bubseek-schedule/src/tests", "contrib/bubseek-marimo/tests"]
+testpaths = ["tests", "contrib/bubseek-langchain/tests", "contrib/bub-schedule-sqlalchemy/src/tests", "contrib/bubseek-marimo/tests"]
 
 [tool.ruff]
 target-version = "py312"
