@@ -15,10 +15,10 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "bub-schedule-sqlalchemy",
     "bubseek",
     "bubseek-langchain",
     "bubseek-marimo",
-    "bubseek-schedule",
 ]
 
 [[package]]
@@ -409,6 +409,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "bub-schedule-sqlalchemy"
+version = "0.1.0"
+source = { editable = "contrib/bub-schedule-sqlalchemy" }
+dependencies = [
+    { name = "apscheduler" },
+    { name = "bub" },
+    { name = "loguru" },
+    { name = "pydantic-settings" },
+    { name = "sqlalchemy" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apscheduler", specifier = ">=3.11.2" },
+    { name = "bub", git = "https://github.com/bubbuild/bub.git" },
+    { name = "loguru" },
+    { name = "pydantic-settings", specifier = ">=2.0.0" },
+    { name = "sqlalchemy", specifier = ">=2.0" },
+]
+
+[[package]]
 name = "bub-tapestore-sqlalchemy"
 version = "0.1.0"
 source = { git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-tapestore-sqlalchemy&branch=main#f2ef9c511c7f5e0a2ea2d3ae448addfa373d9440" }
@@ -447,12 +468,12 @@ dependencies = [
     { name = "bub-discord" },
     { name = "bub-feishu" },
     { name = "bub-mcp" },
+    { name = "bub-schedule-sqlalchemy" },
     { name = "bub-tapestore-sqlalchemy" },
     { name = "bub-web-search" },
     { name = "bub-wechat" },
     { name = "bub-wecom" },
     { name = "bubseek-marimo" },
-    { name = "bubseek-schedule" },
     { name = "pydantic-settings" },
     { name = "pyobvector" },
     { name = "python-dotenv" },
@@ -488,13 +509,13 @@ requires-dist = [
     { name = "bub-discord", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-discord&branch=main" },
     { name = "bub-feishu", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-feishu&branch=main" },
     { name = "bub-mcp", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-mcp&branch=main" },
+    { name = "bub-schedule-sqlalchemy", editable = "contrib/bub-schedule-sqlalchemy" },
     { name = "bub-tapestore-sqlalchemy", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-tapestore-sqlalchemy&branch=main" },
     { name = "bub-web-search", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-web-search&branch=main" },
     { name = "bub-wechat", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-wechat&branch=main" },
     { name = "bub-wecom", git = "https://github.com/bubbuild/bub-contrib.git?subdirectory=packages%2Fbub-wecom&branch=main" },
     { name = "bubseek-langchain", marker = "extra == 'langchain'", editable = "contrib/bubseek-langchain" },
     { name = "bubseek-marimo", editable = "contrib/bubseek-marimo" },
-    { name = "bubseek-schedule", editable = "contrib/bubseek-schedule" },
     { name = "deepagents", marker = "extra == 'langchain'", specifier = ">=0.5.3" },
     { name = "langchain-openai", marker = "extra == 'langchain'", specifier = ">=0.3.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
@@ -568,25 +589,6 @@ requires-dist = [
     { name = "marimo", specifier = ">=0.20.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
-]
-
-[[package]]
-name = "bubseek-schedule"
-version = "0.1.0"
-source = { editable = "contrib/bubseek-schedule" }
-dependencies = [
-    { name = "apscheduler" },
-    { name = "bub" },
-    { name = "bubseek" },
-    { name = "loguru" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "apscheduler", specifier = ">=3.11.2" },
-    { name = "bub", git = "https://github.com/bubbuild/bub.git" },
-    { name = "bubseek", editable = "." },
-    { name = "loguru" },
 ]
 
 [[package]]

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import sys
 from collections.abc import Callable
 from typing import Any, cast
@@ -11,7 +10,7 @@ from urllib.parse import urlparse
 import pymysql
 import pyobvector  # noqa: F401
 import typer
-from bub import hookimpl
+from pydantic import ValidationError
 from pyobvector.schema.dialect import OceanBaseDialect as _OceanBaseDialect
 from sqlalchemy.dialects import registry
 
@@ -45,8 +44,15 @@ def normalize_oceanbase_url(url: str) -> str:
 
 def resolve_tapestore_url(url: str | None = None) -> str:
     """Resolve the tapestore URL from an explicit value or the process environment."""
-    raw_url = os.environ.get("BUB_TAPESTORE_SQLALCHEMY_URL", "") if url is None else url
-    return normalize_oceanbase_url(raw_url)
+    if url is not None:
+        return normalize_oceanbase_url(url)
+
+    from bubseek.settings import load_bubseek_settings
+
+    try:
+        return load_bubseek_settings().tapestore_url
+    except ValidationError:
+        return ""
 
 
 def mysql_connection_params(
@@ -203,16 +209,3 @@ def _patch_tape_store_validate_schema() -> None:
 
 
 _patch_tape_store_validate_schema()
-
-
-def register(framework: object) -> object:
-    """Bub plugin entry point. Registers the OceanBase dialect plugin."""
-    return _OceanBaseDialectPlugin()
-
-
-class _OceanBaseDialectPlugin:
-    """Minimal plugin to satisfy the Bub loader."""
-
-    @hookimpl
-    def provide_tape_store(self) -> None:
-        return None

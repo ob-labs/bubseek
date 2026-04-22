@@ -1,21 +1,19 @@
 [project]
-name = "bubseek-schedule"
+name = "bub-schedule-sqlalchemy"
 version = "0.1.0"
-description = "Scheduling tools for Bubseek (OceanBase/seekdb job store)"
+description = "A standard Bub scheduling plugin backed by APScheduler SQLAlchemy job stores"
 authors = [{ name = "Chojan Shang", email = "psiace@apache.org" }]
 requires-python = ">=3.12"
 dependencies = [
     "apscheduler>=3.11.2",
     "bub",
-    "bubseek",
     "loguru",
+    "pydantic-settings>=2.0.0",
+    "sqlalchemy>=2.0",
 ]
 
-[tool.uv.sources]
-bubseek = { workspace = true }
-
-[project.entry-points."bub"]
-schedule = "bubseek_schedule.plugin:main"
+[project.entry-points.bub]
+schedule = "bub_schedule_sqlalchemy.plugin:main"
 
 [build-system]
 requires = ["pdm-backend"]
@@ -23,4 +21,4 @@ build-backend = "pdm.backend"
 
 [tool.pdm.build]
 package-dir = "src"
-includes = ["src/bubseek_schedule"]
+includes = ["src/bub_schedule_sqlalchemy"]

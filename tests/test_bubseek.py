@@ -11,20 +11,20 @@ from typing import cast
 
 import pytest
 from bub.skills import _read_skill
+from pydantic import ValidationError
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-BUBSEEK_SRC = REPO_ROOT / "src"
 
 
 @contextmanager
 def imported_bubseek_modules(*module_names: str) -> Iterator[list[ModuleType]]:
-    sys.path.insert(0, str(BUBSEEK_SRC))
     try:
         yield [importlib.import_module(name) for name in module_names]
     finally:
-        sys.path.remove(str(BUBSEEK_SRC))
         for module_name in list(sys.modules):
             if module_name == "bubseek" or module_name.startswith("bubseek."):
+                sys.modules.pop(module_name, None)
+            if module_name == "bub_schedule_sqlalchemy" or module_name.startswith("bub_schedule_sqlalchemy."):
                 sys.modules.pop(module_name, None)
 
 
@@ -37,14 +37,14 @@ def _as_dict(value: object) -> dict[str, object]:
     return cast(dict[str, object], value)
 
 
-def test_distribution_metadata_exposes_bub_plugin_without_console_script() -> None:
+def test_distribution_metadata_exposes_sqlalchemy_dialect_without_console_script() -> None:
     data = _load_pyproject()
 
     project = _as_dict(data["project"])
     assert "scripts" not in project
     assert project["entry-points"] == {
-        "bub": {
-            "oceanbase-dialect": "bubseek.oceanbase:register",
+        "sqlalchemy.dialects": {
+            "mysql.oceanbase": "bubseek.oceanbase:OceanBaseDialect",
         },
     }
 
@@ -74,14 +74,6 @@ def test_bundled_skills_have_valid_frontmatter() -> None:
     assert "github-repo-cards" in skill_names
 
 
-def test_resolve_tapestore_url_requires_explicit_url(monkeypatch) -> None:
-    with imported_bubseek_modules("bubseek.oceanbase") as [oceanbase_mod]:
-        monkeypatch.setenv("BUB_TAPESTORE_SQLALCHEMY_URL", "")
-
-        assert oceanbase_mod.resolve_tapestore_url() == ""
-        assert oceanbase_mod.mysql_connection_params() is None
-
-
 def test_mysql_connection_params_extract_mysql_values(monkeypatch) -> None:
     with imported_bubseek_modules("bubseek.oceanbase") as [oceanbase_mod]:
         monkeypatch.setenv(
@@ -99,18 +91,6 @@ def test_mysql_connection_params_extract_mysql_values(monkeypatch) -> None:
         )
 
 
-def test_resolve_tapestore_url_prefers_explicit_argument_over_env(monkeypatch) -> None:
-    with imported_bubseek_modules("bubseek.oceanbase") as [oceanbase_mod]:
-        monkeypatch.setenv(
-            "BUB_TAPESTORE_SQLALCHEMY_URL",
-            "mysql+oceanbase://env:secret@seekdb.example:2881/env_db",
-        )
-
-        url = oceanbase_mod.resolve_tapestore_url("mysql://cli:secret@seekdb.example:2881/cli_db")
-
-    assert url == "mysql+oceanbase://cli:secret@seekdb.example:2881/cli_db"
-
-
 def test_oceanbase_registers_mysql_pymysql_alias() -> None:
     with imported_bubseek_modules("bubseek.oceanbase") as [oceanbase_mod]:
         from sqlalchemy.dialects import registry
@@ -118,6 +98,26 @@ def test_oceanbase_registers_mysql_pymysql_alias() -> None:
         dialect_cls = registry.load("mysql.oceanbase")
 
     assert dialect_cls is oceanbase_mod.OceanBaseDialect
+
+
+def test_bubseek_settings_require_tapestore_url(monkeypatch) -> None:
+    with imported_bubseek_modules("bubseek.settings") as [settings_mod]:
+        monkeypatch.delenv("BUB_TAPESTORE_SQLALCHEMY_URL", raising=False)
+
+        with pytest.raises(ValidationError):
+            settings_mod.BubseekSettings(_env_file=None)
+
+
+def test_bubseek_settings_normalize_tapestore_url(monkeypatch) -> None:
+    with imported_bubseek_modules("bubseek.settings") as [settings_mod]:
+        monkeypatch.setenv(
+            "BUB_TAPESTORE_SQLALCHEMY_URL",
+            "mysql+pymysql://seek:secret@seekdb.example:2881/analytics",
+        )
+
+        settings = settings_mod.load_bubseek_settings()
+
+    assert settings.tapestore_url == "mysql+oceanbase://seek:secret@seekdb.example:2881/analytics"
 
 
 def test_ensure_database_skips_non_mysql_backends(monkeypatch) -> None:
