@@ -14,14 +14,65 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
 import time
-from datetime import UTC
+import urllib.error
+import urllib.parse
+import urllib.request
+from datetime import UTC, datetime, timedelta
+from http import HTTPStatus
 from pathlib import Path
 
 # ── Data fetching ────────────────────────────────────────────────────────────
+
+_GITHUB_API = "https://api.github.com"
+_TRENDING_URL = "https://github.com/trending"
+
+
+def _github_headers(*, accept: str = "application/vnd.github+json") -> dict[str, str]:
+    headers = {
+        "Accept": accept,
+        "User-Agent": "bubseek-github-repo-cards",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
+def _http_get(url: str, *, accept: str) -> tuple[bytes, str]:
+    curl = shutil.which("curl")
+    headers = _github_headers(accept=accept)
+    if curl:
+        command = [curl, "-fsSL", "--compressed", "--retry", "2", "--connect-timeout", "20"]
+        for name, value in headers.items():
+            command.extend(["-H", f"{name}: {value}"])
+        command.append(url)
+        response = subprocess.run(command, capture_output=True, check=True)
+        return response.stdout, "application/octet-stream"
+
+    request = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(request, timeout=20) as response:
+        return response.read(), response.headers.get("Content-Type", "application/octet-stream")
+
+
+def _api_json(url: str, *, accept: str = "application/vnd.github+json") -> dict | list:
+    payload, _ = _http_get(url, accept=accept)
+    return json.loads(payload.decode("utf-8"))
+
+
+def _api_text(url: str, *, accept: str = "text/html") -> str:
+    payload, _ = _http_get(url, accept=accept)
+    return payload.decode("utf-8")
+
+
+def _gh_available() -> bool:
+    return shutil.which("gh") is not None
 
 
 def _gh_json(*args: str) -> dict | list:
@@ -36,8 +87,17 @@ def _gh_json(*args: str) -> dict | list:
 
 def _gh_stats_json(endpoint: str, retries: int = 4) -> dict | list:
     """Fetch a GitHub stats endpoint with retry for 202 (computing) responses."""
+    raw: dict | list = {}
     for attempt in range(retries):
-        raw = _gh_json("api", endpoint, "--cache", "0s")
+        if _gh_available():
+            raw = _gh_json("api", endpoint, "--cache", "0s")
+        else:
+            try:
+                raw = _api_json(f"{_GITHUB_API}/{endpoint}")
+            except urllib.error.HTTPError as exc:
+                if exc.code != HTTPStatus.ACCEPTED:
+                    raise
+                raw = {}
         if isinstance(raw, list):
             return raw
         delay = 2**attempt
@@ -47,40 +107,88 @@ def _gh_stats_json(endpoint: str, retries: int = 4) -> dict | list:
 
 
 def fetch_trending(language: str = "", since: str = "daily", limit: int = 10) -> list[dict]:
-    """Approximate trending repos using GitHub search API sorted by recent stars.
+    """Fetch trending repositories from the public trending page.
 
-    GitHub has no public trending API, so we search for repos created/updated
-    recently, sorted by stars.
+    If parsing fails or GitHub changes the page shape, fall back to the search API.
     """
-    from datetime import datetime, timedelta
+    repos = _fetch_trending_page(language=language, since=since, limit=limit)
+    if repos:
+        return repos
+    return _fetch_trending_via_search_api(language=language, since=since, limit=limit)
 
+
+def _fetch_trending_page(language: str = "", since: str = "daily", limit: int = 10) -> list[dict]:
+    params = {"since": since}
+    if language:
+        params["l"] = language
+
+    html_text = _api_text(f"{_TRENDING_URL}?{urllib.parse.urlencode(params)}")
+    repo_matches = re.findall(
+        r'<h2 class="h3 lh-condensed">\s*<a href="/([^"]+)">.*?</a>\s*</h2>(.*?)</article>',
+        html_text,
+        flags=re.DOTALL,
+    )
+
+    results = []
+    for full_name, article_body in repo_matches[:limit]:
+        normalized_name = "/".join(part.strip() for part in full_name.split("/"))
+        description_match = re.search(
+            r'<p class="col-9 color-fg-muted my-1 pr-4">\s*(.*?)\s*</p>',
+            article_body,
+            flags=re.DOTALL,
+        )
+        language_match = re.search(
+            r'<span itemprop="programmingLanguage">\s*(.*?)\s*</span>',
+            article_body,
+            flags=re.DOTALL,
+        )
+        stars_and_forks = re.findall(r'href="/[^"]+/(stargazers|forks)">\s*([\d,]+)\s*</a>', article_body)
+        counts = {kind: int(count.replace(",", "")) for kind, count in stars_and_forks}
+
+        results.append({
+            "full_name": normalized_name,
+            "description": html.unescape(_strip_tags(description_match.group(1)))[:120] if description_match else "",
+            "language": html.unescape(language_match.group(1).strip()) if language_match else "",
+            "stars": counts.get("stargazers", 0),
+            "forks": counts.get("forks", 0),
+            "commits_week": _fetch_weekly_commits(normalized_name),
+        })
+    return results
+
+
+def _fetch_trending_via_search_api(language: str = "", since: str = "daily", limit: int = 10) -> list[dict]:
     window = {"daily": 1, "weekly": 7, "monthly": 30}.get(since, 1)
     cutoff = (datetime.now(UTC) - timedelta(days=window)).strftime("%Y-%m-%d")
 
     q_parts = [f"pushed:>={cutoff}", "stars:>=10"]
     if language:
         q_parts.append(f"language:{language}")
-    query = "+".join(q_parts)
+    query = urllib.parse.quote_plus(" ".join(q_parts))
 
-    raw = _gh_json(
-        "api",
-        f"search/repositories?q={query}&sort=stars&order=desc&per_page={limit}",
-        "--cache",
-        "1h",
+    url = f"{_GITHUB_API}/search/repositories?q={query}&sort=stars&order=desc&per_page={limit}"
+    raw = (
+        _gh_json(
+            "api", f"search/repositories?q={'+'.join(q_parts)}&sort=stars&order=desc&per_page={limit}", "--cache", "1h"
+        )
+        if _gh_available()
+        else _api_json(url)
     )
     items = raw.get("items", []) if isinstance(raw, dict) else []
     results = []
-    for r in items[:limit]:
-        commits_week = _fetch_weekly_commits(r["full_name"])
+    for repo in items[:limit]:
         results.append({
-            "full_name": r["full_name"],
-            "description": (r.get("description") or "")[:120],
-            "language": r.get("language") or "",
-            "stars": r["stargazers_count"],
-            "forks": r["forks_count"],
-            "commits_week": commits_week,
+            "full_name": repo["full_name"],
+            "description": (repo.get("description") or "")[:120],
+            "language": repo.get("language") or "",
+            "stars": repo["stargazers_count"],
+            "forks": repo["forks_count"],
+            "commits_week": _fetch_weekly_commits(repo["full_name"]),
         })
     return results
+
+
+def _strip_tags(text: str) -> str:
+    return re.sub(r"<[^>]+>", "", " ".join(text.split()))
 
 
 def _fetch_weekly_commits(nwo: str) -> list[int]:

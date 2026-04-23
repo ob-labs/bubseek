@@ -22,9 +22,11 @@ repos:
         entry: uv run ruff check
         language: system
         types: [python]
+        exclude: ^skills/
         args: [--exit-non-zero-on-fix]
       - id: ruff-format
         name: ruff-format
         entry: uv run ruff format
         language: system
         types: [python]
+        exclude: ^skills/

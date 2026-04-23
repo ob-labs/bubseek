@@ -29,7 +29,7 @@ uv run scripts/gh_repo_card.py <org>/<repo> [--top-n 5] [--analysis "Your analys
 ```
 
 The script path is relative to this skill directory:
-`src/skills/github-repo-cards/scripts/gh_repo_card.py`
+`skills/github-repo-cards/scripts/gh_repo_card.py`
 
 This will:
 1. Call `gh` to fetch repo metadata, stargazer counts, commit activity, and top contributors.
@@ -42,8 +42,7 @@ This will:
 uv run scripts/gh_trending_card.py [--language python] [--since daily] [--limit 10] [--output trending.svg]
 ```
 
-The script path is relative to this skill directory:
-`src/skills/github-repo-cards/scripts/gh_trending_card.py`
+The script path is relative to this skill directory: `scripts/gh_trending_card.py`
 
 This will:
 1. Scrape GitHub trending page (or use `gh api` search with recent star sorting).

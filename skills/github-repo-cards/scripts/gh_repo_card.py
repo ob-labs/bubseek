@@ -15,16 +15,63 @@ import argparse
 import base64
 import html
 import json
+import os
 import shutil
 import subprocess
 import sys
 import textwrap
 import time
+import urllib.error
 import urllib.request
+from datetime import datetime
+from http import HTTPStatus
 from pathlib import Path
 from typing import cast
 
-# ── Data fetching via gh CLI ─────────────────────────────────────────────────
+# ── Data fetching via gh CLI / GitHub API ────────────────────────────────────
+
+_GITHUB_API = "https://api.github.com"
+
+
+def _github_headers(*, accept: str = "application/vnd.github+json") -> dict[str, str]:
+    headers = {
+        "Accept": accept,
+        "User-Agent": "bubseek-github-repo-cards",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
+def _http_get(url: str, *, accept: str) -> tuple[bytes, str]:
+    curl = shutil.which("curl")
+    headers = _github_headers(accept=accept)
+    if curl:
+        command = [curl, "-fsSL", "--compressed", "--retry", "2", "--connect-timeout", "20"]
+        for name, value in headers.items():
+            command.extend(["-H", f"{name}: {value}"])
+        command.append(url)
+        response = subprocess.run(command, capture_output=True, check=True)
+        return response.stdout, "application/octet-stream"
+
+    request = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(request, timeout=20) as response:
+        return response.read(), response.headers.get("Content-Type", "application/octet-stream")
+
+
+def _api_json(url: str, *, accept: str = "application/vnd.github+json") -> dict | list:
+    payload, _ = _http_get(url, accept=accept)
+    return cast(dict | list, json.loads(payload.decode("utf-8")))
+
+
+def _api_bytes(url: str, *, accept: str = "application/octet-stream") -> tuple[bytes, str]:
+    return _http_get(url, accept=accept)
+
+
+def _gh_available() -> bool:
+    return shutil.which("gh") is not None
 
 
 def _gh(*args: str) -> str:
@@ -47,18 +94,47 @@ def _gh_stats_json(endpoint: str, retries: int = 4) -> dict | list:
     GitHub stats APIs return ``{}`` while computing data on the first call.
     We retry with exponential back-off until an array is returned.
     """
+    raw: dict | list = {}
     for attempt in range(retries):
-        raw = _gh_json("api", endpoint, "--cache", "0s")
+        if _gh_available():
+            raw = _gh_json("api", endpoint, "--cache", "0s")
+        else:
+            try:
+                raw = _api_json(f"{_GITHUB_API}/{endpoint}")
+            except urllib.error.HTTPError as exc:
+                if exc.code != HTTPStatus.ACCEPTED:
+                    raise
+                raw = {}
+
         if isinstance(raw, list):
             return raw
+
         delay = 2**attempt
         print(f"   ⏳ stats computing, retry in {delay}s …", file=sys.stderr)
         time.sleep(delay)
+
     return raw
 
 
 def fetch_repo_info(nwo: str) -> dict:
     """Fetch basic repo metadata."""
+    if not _gh_available():
+        raw = _api_json(f"{_GITHUB_API}/repos/{nwo}")
+        if not isinstance(raw, dict):
+            raise TypeError(f"Unexpected response for repository {nwo!r}")
+        return {
+            "name": raw.get("name"),
+            "owner": {"login": raw.get("owner", {}).get("login", "")},
+            "description": raw.get("description"),
+            "stargazerCount": raw.get("stargazers_count", 0),
+            "forkCount": raw.get("forks_count", 0),
+            "primaryLanguage": {"name": raw.get("language") or ""},
+            "licenseInfo": {"name": (raw.get("license") or {}).get("name", "")},
+            "updatedAt": raw.get("updated_at"),
+            "url": raw.get("html_url"),
+            "homepageUrl": raw.get("homepage"),
+        }
+
     return cast(
         dict,
         _gh_json(
@@ -86,21 +162,28 @@ def fetch_stargazer_counts(nwo: str) -> list[int]:
     rough weekly bucketed curve.
     """
     try:
-        raw = _gh(
-            "api",
-            f"repos/{nwo}/stargazers?per_page=100",
-            "-H",
-            "Accept: application/vnd.github.star+json",
-            "--cache",
-            "1h",
-        )
-        if not raw:
-            return []
-        items = json.loads(raw)
+        if _gh_available():
+            raw = _gh(
+                "api",
+                f"repos/{nwo}/stargazers?per_page=100",
+                "-H",
+                "Accept: application/vnd.github.star+json",
+                "--cache",
+                "1h",
+            )
+            if not raw:
+                return []
+            items = json.loads(raw)
+        else:
+            items = _api_json(
+                f"{_GITHUB_API}/repos/{nwo}/stargazers?per_page=100",
+                accept="application/vnd.github.star+json",
+            )
+
         if not isinstance(items, list):
             return []
+
         from collections import Counter
-        from datetime import datetime
 
         weeks: Counter[str] = Counter()
         for item in items:
@@ -125,17 +208,18 @@ def _download_avatar_b64(url: str, size: int = 64) -> str:
     """
     fetch_url = f"{url}&s={size}" if "?" in url else f"{url}?s={size}"
     try:
-        with urllib.request.urlopen(fetch_url, timeout=10) as resp:  # noqa: S310
-            data = resp.read()
-            ct = resp.headers.get("Content-Type", "image/png")
-            return f"data:{ct};base64,{base64.b64encode(data).decode()}"
+        data, content_type = _api_bytes(fetch_url)
+        return f"data:{content_type};base64,{base64.b64encode(data).decode()}"
     except Exception:
         return ""
 
 
 def fetch_top_contributors(nwo: str, n: int = 5) -> list[dict]:
     """Return top-N contributors by commit count (with embedded avatar data)."""
-    raw = _gh_json("api", f"repos/{nwo}/contributors?per_page={n}", "--cache", "1h")
+    if _gh_available():
+        raw = _gh_json("api", f"repos/{nwo}/contributors?per_page={n}", "--cache", "1h")
+    else:
+        raw = _api_json(f"{_GITHUB_API}/repos/{nwo}/contributors?per_page={n}")
     if not isinstance(raw, list):
         return []
     results = []
@@ -147,6 +231,31 @@ def fetch_top_contributors(nwo: str, n: int = 5) -> list[dict]:
             "contributions": c["contributions"],
         })
     return results
+
+
+def build_default_analysis(info: dict) -> str:
+    """Generate a concise analysis paragraph from repository metadata."""
+    updated_at = info.get("updatedAt")
+    updated_text = ""
+    if isinstance(updated_at, str):
+        try:
+            updated_dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+            updated_text = updated_dt.strftime("%Y-%m-%d")
+        except ValueError:
+            updated_text = updated_at
+
+    license_name = (info.get("licenseInfo") or {}).get("name", "") or "No license metadata"
+    lang = (info.get("primaryLanguage") or {}).get("name", "") or "Unknown language"
+    homepage = info.get("homepageUrl") or "No homepage"
+
+    fragments = [
+        f"Primary language: {lang}.",
+        f"License: {license_name}.",
+        f"Homepage: {homepage}.",
+    ]
+    if updated_text:
+        fragments.append(f"Last updated: {updated_text}.")
+    return " ".join(fragments)
 
 
 # ── SVG rendering ────────────────────────────────────────────────────────────
@@ -512,7 +621,8 @@ def main() -> None:
     contributors = fetch_top_contributors(nwo, args.top_n)
 
     print("🎨 Rendering SVG …")
-    svg = render_repo_svg(info, commits, stars, contributors, analysis=args.analysis, top_n=args.top_n)
+    analysis = args.analysis or build_default_analysis(info)
+    svg = render_repo_svg(info, commits, stars, contributors, analysis=analysis, top_n=args.top_n)
     out.write_text(svg, encoding="utf-8")
     print(f"   → {out}")
 
