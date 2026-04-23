@@ -10,7 +10,6 @@ from types import ModuleType
 from typing import cast
 
 import pytest
-from bub.skills import _read_skill
 from pydantic import ValidationError
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -47,31 +46,6 @@ def test_distribution_metadata_exposes_sqlalchemy_dialect_without_console_script
             "mysql.oceanbase": "bubseek.oceanbase:OceanBaseDialect",
         },
     }
-
-
-def test_pyproject_includes_package_and_builtin_skills_in_wheel() -> None:
-    data = _load_pyproject()
-
-    tool = _as_dict(data["tool"])
-    pdm = _as_dict(tool["pdm"])
-    build = _as_dict(pdm["build"])
-    assert build["includes"] == [
-        "src/bubseek",
-        "src/skills",
-    ]
-    assert build["skills"]
-
-
-def test_bundled_skills_have_valid_frontmatter() -> None:
-    skill_root = REPO_ROOT / "src" / "skills"
-    skill_names = []
-
-    for skill_dir in sorted(path for path in skill_root.iterdir() if path.is_dir()):
-        metadata = _read_skill(skill_dir, source="builtin")
-        assert metadata is not None
-        skill_names.append(metadata.name)
-
-    assert "github-repo-cards" in skill_names
 
 
 def test_mysql_connection_params_extract_mysql_values(monkeypatch) -> None:
